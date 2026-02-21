@@ -22,6 +22,48 @@ enum ObjectType {
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
+enum LensType {
+    Perspective,
+    Orthographic,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+enum SensorFit {
+    Auto,
+    Horizontal,
+    Vertical,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
 struct CameraProperties {
-    
+    // Lens
+    lens_type: LensType,
+    focal_length: f64,       // mm, used when perspective
+    orthographic_scale: f64, // used when orthographic
+    shift_x: f64,
+    shift_y: f64,
+    clip_start: f64,
+    clip_end: f64,
+    // Depth of Field
+    focal_distance: f64,
+    aperture_fstop: f64,
+    aperture_blades: u32,
+    aperture_rotation: f64,
+    aperture_ratio: f64,
+    // Sensor
+    sensor_fit: SensorFit,
+    sensor_width: f64,
+    sensor_height: f64,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+struct PointLightProperties {
+    // Common to all lights
+    color: [f32; 3],
+    temperature: f32, // Kelvin
+    exposure: f32,
+    // Specific to point lights
+    power: f32,       // watts
+    radius: f32,      // sphere radius for soft shadows
+    soft_falloff: bool,
 }
