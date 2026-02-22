@@ -12,11 +12,13 @@ use axum::extract::ws::Message;
 use crate::{
     messages::{
         ClientEvent, FullStateSyncPayload, ServerEvent, UserJoinedPayload, parse_client_message, UserLeftPayload,
+        ObjectCreatedPayload,
     },
-    types::{AppState, Session, User},
+    types::{AppState, Session, User, SceneObject},
 };
 
 use dashmap::DashMap;
+use std::time::{SystemTime, UNIX_EPOCH}; 
 
 pub async fn handler(ws: WebSocketUpgrade, State(state): State<AppState>) -> Response {
     ws.on_upgrade(|socket| handle_connection(socket, state))
@@ -99,7 +101,32 @@ pub async fn handle_connection(mut socket: WebSocket, state: AppState) {
                                 user_id = None;
                                 session_id = None;
                             }
-                            ClientEvent::CreateObject(payload)     => {}
+                            ClientEvent::CreateObject(payload) => {
+                                let (Some(uid), Some(sid)) = (user_id, session_id.as_deref()) else { continue; };
+                                let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis() as u64;
+                                if let Some(session) = state.sessions.get(sid) {
+                                    let scene_object = SceneObject {
+                                        object_id: payload.object_id,
+                                        name: payload.name.clone(),
+                                        object_type: payload.object_type.clone(),
+                                        asset_id: payload.asset_id.clone(),
+                                        asset_library: payload.asset_library.clone(),
+                                        transform: payload.transform.clone(),
+                                        properties: payload.properties.clone(),
+                                        created_by: uid,
+                                        last_updated_by: uid,
+                                        last_updated_at: now,
+                                    };
+                                    session.objects.insert(scene_object.object_id, scene_object.clone());
+                                    let json = serde_json::to_string(&ServerEvent::ObjectCreated(ObjectCreatedPayload {
+                                        object: scene_object,
+                                        created_by: uid,
+                                    })).unwrap();
+                                    for entry in state.connections.iter() {
+                                        let _ = entry.value().try_send(json.clone());
+                                    }
+                                }
+                            }
                             ClientEvent::DeleteObject(payload)     => {}
                             ClientEvent::UpdateTransform(payload)  => {}
                             ClientEvent::UpdateProperties(payload) => {}
