@@ -10,6 +10,8 @@ use tokio::sync::mpsc;
 pub struct AppState {
     pub sessions: Arc<DashMap<String, Session>>,
     pub connections: Arc<DashMap<Uuid, mpsc::Sender<String>>>,
+    /// Maps connection_id → (session_id, user_id) for session-scoped broadcast routing.
+    pub connection_meta: Arc<DashMap<Uuid, (String, Uuid)>>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
