@@ -71,7 +71,7 @@ pub async fn handle_connection(mut socket: WebSocket, state: AppState) {
                                 let sync = ServerEvent::FullStateSync(FullStateSyncPayload {
                                     session: session.clone(),
                                 });
-                                let json = serde_json::to_string(&sync).unwrap();
+                                let json = serde_json::to_string(&sync).expect("serialize to json failed");
                                 socket.send(Message::Text(json.into())).await.ok();
 
                                 // broadcast UserJoined to everyone else
@@ -79,7 +79,7 @@ pub async fn handle_connection(mut socket: WebSocket, state: AppState) {
                                     user_id: new_user_id,
                                     display_name: payload.display_name.clone(),
                                     color: [255, 0, 0],
-                                })).unwrap();
+                                })).expect("serialize to json failed");
 
                                 for entry in state.connections.iter() {
                                     if *entry.key() == connection_id { continue; }
@@ -92,7 +92,7 @@ pub async fn handle_connection(mut socket: WebSocket, state: AppState) {
                                     session.users.remove(&uid);
                                     let left_json = serde_json::to_string(&ServerEvent::UserLeft(UserLeftPayload {
                                         user_id: uid,
-                                    })).unwrap();
+                                    })).expect("serialize to json failed");
                                     for entry in state.connections.iter() {
                                         if *entry.key() == connection_id { continue; }
                                         let _ = entry.value().try_send(left_json.clone());
@@ -121,7 +121,7 @@ pub async fn handle_connection(mut socket: WebSocket, state: AppState) {
                                     let json = serde_json::to_string(&ServerEvent::ObjectCreated(ObjectCreatedPayload {
                                         object: scene_object,
                                         created_by: uid,
-                                    })).unwrap();
+                                    })).expect("serialize to json failed");
                                     for entry in state.connections.iter() {
                                         let _ = entry.value().try_send(json.clone());
                                     }
