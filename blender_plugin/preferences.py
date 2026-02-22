@@ -1,0 +1,1 @@
+# preferences.py — MeerkatPreferences (AddonPreferences)

@@ -134,7 +134,7 @@ Collaborators share a common asset library — one or more `.blend` files contai
 - Plugin configuration includes a file path to one or more asset library `.blend` files
 - UI panel displays a dropdown of available assets from loaded libraries
 - When a user places an asset, the plugin sends `CREATE_OBJECT` with type `"asset_ref"`, the `asset_id` (object name in the library), the library filename, and the transform
-- Receiving clients look up the `asset_id` in their local copy of the library, append it into the scene, assign the synced UUID, and apply the transform
+- Receiving clients look up the `asset_id` in their local copy of the library, **link** it into the scene (not append — linked objects retain a live reference to the source file so asset updates propagate automatically on library reload), assign the synced UUID, and apply the transform
 - If a client is missing the asset library or the `asset_id` is not found, display a placeholder bounding box with the object name and log a warning in the UI panel
 
 **Acceptance Criteria:**
@@ -734,20 +734,20 @@ blender_plugin/
 - [ ] Add an asset dropdown (`EnumProperty` populated from `PluginState.asset_library_objects`) to the Meerkat panel
 - [ ] `MEERKAT_OT_place_asset` operator:
   1. Read selected asset name from the enum property
-  2. Call `bpy.ops.wm.append(filepath=..., directory=..., filename=asset_name)` to append from the local library file
-  3. Find the newly appended object (search for it by name in `bpy.data.objects`)
+  2. Call `bpy.ops.wm.link(filepath=..., directory=..., filename=asset_name)` to link from the local library file (linked objects retain a live reference — when the source `.blend` is updated and the library is reloaded, the asset updates automatically without re-placing)
+  3. Find the newly linked object (search for it by name in `bpy.data.objects`)
   4. Tag with UUID
   5. Send `CREATE_OBJECT` with `type: "asset_ref"`, `asset_id: asset_name`, `asset_library: library_filename`
 
 #### 3.10 OBJECT_CREATED: asset_ref Handler
 - [ ] In `handle_object_created`, for `type == "asset_ref"`:
-  - Call `bpy.ops.wm.append(filepath=..., directory=..., filename=payload["asset_id"])`
-  - Find appended object by name
+  - Call `bpy.ops.wm.link(filepath=..., directory=..., filename=payload["asset_id"])`
+  - Find linked object by name
   - Assign `meerkat_id`
   - Apply transform
 
 #### 3.11 Missing Asset Placeholder
-- [ ] If `bpy.ops.wm.append` fails or the asset_id is not found in the local library:
+- [ ] If `bpy.ops.wm.link` fails or the asset_id is not found in the local library:
   - Create a wireframe cube mesh object as a placeholder
   - Set its name to `f"[MISSING] {asset_id}"`
   - Add a text annotation in the 3D viewport (or use object name as the label)

@@ -1,0 +1,1 @@
+# state.py — PluginState singleton
