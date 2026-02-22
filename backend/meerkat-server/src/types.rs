@@ -2,8 +2,15 @@ use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use std::sync::Arc;
 use dashmap::DashMap;
+use tokio::sync::mpsc;
 
-pub type ServerState = Arc<DashMap<String, Session>>;
+
+
+#[derive(Clone)]
+pub struct AppState {
+    pub sessions: Arc<DashMap<String, Session>>,
+    pub connections: Arc<DashMap<Uuid, mpsc::Sender<String>>>,
+}
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct Transform {
