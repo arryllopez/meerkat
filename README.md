@@ -1,2 +1,2 @@
-![Meerkat](assets/meerkat.png)
+![Meerkat](meerkat.png)
 ### Real-time collaboration in Blender coming soon...
