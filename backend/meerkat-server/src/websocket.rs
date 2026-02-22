@@ -12,7 +12,8 @@ use axum::extract::ws::Message;
 use crate::{
     messages::{
         ClientEvent, FullStateSyncPayload, ServerEvent, UserJoinedPayload, parse_client_message, UserLeftPayload,
-        ObjectCreatedPayload,
+        ObjectCreatedPayload, ObjectDeletedPayload, TransformUpdatedPayload, PropertiesUpdatedPayload,
+        NameUpdatedPayload, UserSelectedPayload,
     },
     types::{AppState, Session, User, SceneObject},
 };
@@ -127,11 +128,91 @@ pub async fn handle_connection(mut socket: WebSocket, state: AppState) {
                                     }
                                 }
                             }
-                            ClientEvent::DeleteObject(payload)     => {}
-                            ClientEvent::UpdateTransform(payload)  => {}
-                            ClientEvent::UpdateProperties(payload) => {}
-                            ClientEvent::UpdateName(payload)       => {}
-                            ClientEvent::SelectObject(payload)     => {}
+                            ClientEvent::DeleteObject(payload) => {
+                                let (Some(uid), Some(sid)) = (user_id, session_id.as_deref()) else { continue; };
+                                if let Some(session) = state.sessions.get(sid) {
+                                    session.objects.remove(&payload.object_id);
+                                    let json = serde_json::to_string(&ServerEvent::ObjectDeleted(ObjectDeletedPayload {
+                                        object_id: payload.object_id,
+                                        deleted_by: uid,
+                                    })).expect("serialize to json failed");
+                                    for entry in state.connections.iter() {
+                                        let _ = entry.value().try_send(json.clone());
+                                    }
+                                }
+                            }
+                            ClientEvent::UpdateTransform(payload) => {
+                                let (Some(uid), Some(sid)) = (user_id, session_id.as_deref()) else { continue; };
+                                let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis() as u64;
+                                if let Some(session) = state.sessions.get(sid) {
+                                    if let Some(mut obj) = session.objects.get_mut(&payload.object_id) {
+                                        obj.transform = payload.transform.clone();
+                                        obj.last_updated_by = uid;
+                                        obj.last_updated_at = now;
+                                        let json = serde_json::to_string(&ServerEvent::TransformUpdated(TransformUpdatedPayload {
+                                            object_id: payload.object_id,
+                                            transform: payload.transform,
+                                            updated_by: uid,
+                                        })).expect("serialize to json failed");
+                                        for entry in state.connections.iter() {
+                                            let _ = entry.value().try_send(json.clone());
+                                        }
+                                    }
+                                }
+                            }
+                            ClientEvent::UpdateProperties(payload) => {
+                                let (Some(uid), Some(sid)) = (user_id, session_id.as_deref()) else { continue; };
+                                let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis() as u64;
+                                if let Some(session) = state.sessions.get(sid) {
+                                    if let Some(mut obj) = session.objects.get_mut(&payload.object_id) {
+                                        obj.properties = Some(payload.properties.clone());
+                                        obj.last_updated_by = uid;
+                                        obj.last_updated_at = now;
+                                        let json = serde_json::to_string(&ServerEvent::PropertiesUpdated(PropertiesUpdatedPayload {
+                                            object_id: payload.object_id,
+                                            properties: payload.properties,
+                                            updated_by: uid,
+                                        })).expect("serialize to json failed");
+                                        for entry in state.connections.iter() {
+                                            let _ = entry.value().try_send(json.clone());
+                                        }
+                                    }
+                                }
+                            }
+                            ClientEvent::UpdateName(payload) => {
+                                let (Some(uid), Some(sid)) = (user_id, session_id.as_deref()) else { continue; };
+                                let now = SystemTime::now().duration_since(UNIX_EPOCH).unwrap().as_millis() as u64;
+                                if let Some(session) = state.sessions.get(sid) {
+                                    if let Some(mut obj) = session.objects.get_mut(&payload.object_id) {
+                                        obj.name = payload.name.clone();
+                                        obj.last_updated_by = uid;
+                                        obj.last_updated_at = now;
+                                        let json = serde_json::to_string(&ServerEvent::NameUpdated(NameUpdatedPayload {
+                                            object_id: payload.object_id,
+                                            name: payload.name,
+                                            updated_by: uid,
+                                        })).expect("serialize to json failed");
+                                        for entry in state.connections.iter() {
+                                            let _ = entry.value().try_send(json.clone());
+                                        }
+                                    }
+                                }
+                            }
+                            ClientEvent::SelectObject(payload) => {
+                                let (Some(uid), Some(sid)) = (user_id, session_id.as_deref()) else { continue; };
+                                if let Some(session) = state.sessions.get(sid) {
+                                    if let Some(mut user) = session.users.get_mut(&uid) {
+                                        user.selected_object = payload.object_id;
+                                    }
+                                    let json = serde_json::to_string(&ServerEvent::UserSelected(UserSelectedPayload {
+                                        user_id: uid,
+                                        object_id: payload.object_id,
+                                    })).expect("serialize to json failed");
+                                    for entry in state.connections.iter() {
+                                        let _ = entry.value().try_send(json.clone());
+                                    }
+                                }
+                            }
                         }
                     }
                     Err(_) => { continue; }
@@ -147,5 +228,15 @@ pub async fn handle_connection(mut socket: WebSocket, state: AppState) {
 
     // cleanup on disconnect
     state.connections.remove(&connection_id);
-    // TODO: if session_id and user_id are Some, run leave_session + broadcast USER_LEFT
+    if let (Some(uid), Some(sid)) = (user_id, session_id.as_deref()) {
+        if let Some(session) = state.sessions.get(sid) {
+            session.users.remove(&uid);
+            let left_json = serde_json::to_string(&ServerEvent::UserLeft(UserLeftPayload {
+                user_id: uid,
+            })).expect("serialize to json failed");
+            for entry in state.connections.iter() {
+                let _ = entry.value().try_send(left_json.clone());
+            }
+        }
+    }
 }
