@@ -11,7 +11,7 @@ use axum::extract::ws::Message;
 
 use crate::{
     messages::{
-        ClientEvent, FullStateSyncPayload, ServerEvent, UserJoinedPayload, parse_client_message,
+        ClientEvent, FullStateSyncPayload, ServerEvent, UserJoinedPayload, parse_client_message, UserLeftPayload,
     },
     types::{AppState, Session, User},
 };
@@ -84,7 +84,21 @@ pub async fn handle_connection(mut socket: WebSocket, state: AppState) {
                                     let _ = entry.value().try_send(joined_json.clone());
                                 }
                             }
-                            ClientEvent::LeaveSession              => {}
+                            ClientEvent::LeaveSession => {
+                                let (Some(uid), Some(sid)) = (user_id, session_id.as_deref()) else { continue; };
+                                if let Some(session) = state.sessions.get(sid) {
+                                    session.users.remove(&uid);
+                                    let left_json = serde_json::to_string(&ServerEvent::UserLeft(UserLeftPayload {
+                                        user_id: uid,
+                                    })).unwrap();
+                                    for entry in state.connections.iter() {
+                                        if *entry.key() == connection_id { continue; }
+                                        let _ = entry.value().try_send(left_json.clone());
+                                    }
+                                }
+                                user_id = None;
+                                session_id = None;
+                            }
                             ClientEvent::CreateObject(payload)     => {}
                             ClientEvent::DeleteObject(payload)     => {}
                             ClientEvent::UpdateTransform(payload)  => {}
