@@ -83,6 +83,19 @@ fn cube_payload(object_id: Uuid) -> CreateObjectPayload {
     }
 }
 
+fn asset_payload(object_id: Uuid, name : &str,  asset_id : Option<String>,  asset_library : Option<String>) -> CreateObjectPayload {
+    CreateObjectPayload { 
+        object_id, 
+        name : name.to_string(),
+        object_type: ObjectType::AssetRef,
+        asset_id, 
+        asset_library,
+        transform: Transform { position: [0.0; 3], rotation: [0.0; 3], scale: [1.0; 3] },
+        properties: None, 
+
+    }
+}
+
 // ── Phase 1 acceptance test ───────────────────────────────────────────────────
 
 /// Walks through the full Phase 1 scenario from the PRD:
@@ -206,7 +219,11 @@ async fn test_update_handlers() {
 
     // Create an object so the update handlers have something to mutate.
     let object_id = Uuid::new_v4();
+    // let asset_id: Option<String> = Some("dragon".to_string());
+    // let asset_library: Option<String> = Some("workLibrary".to_string());
     send(&mut ws_a, ClientEvent::CreateObject(cube_payload(object_id))).await;
+    // send(&mut ws_a, ClientEvent::CreateObject(asset_payload(object_id, "Dragon", asset_id, asset_library,))).await;
+    // send(&mut ws_a, ClientEvent::CreateObject(asset_payload(object_id, "Tree", asset_id, asset_library,))).await;
     recv(&mut ws_a).await; // ObjectCreated (echo to sender)
     recv(&mut ws_b).await; // ObjectCreated
 
@@ -430,6 +447,7 @@ async fn test_concurrent_writes_separate_sessions() {
 
 /// Two users in the SAME session both write concurrently.
 /// Both should receive both events (4 messages total).
+/// Testing with an asset reference within a shared library
 #[tokio::test]
 async fn test_concurrent_writes_same_session() {
     let url = start_test_server().await;
@@ -452,10 +470,16 @@ async fn test_concurrent_writes_same_session() {
     let obj_a = Uuid::new_v4();
     let obj_b = Uuid::new_v4();
 
+    //definitions for assets
+    let asset_a : Option<String> = Some("dragon".to_string());
+    let asset_b : Option<String> = Some("tree".to_string());
+    let asset_library_a : Option<String> = Some("sharedLibrary".to_string());
+    let asset_library_b : Option<String> = Some("sharedLibrary".to_string());
+
     // Both create objects simultaneously in the same session.
     tokio::join!(
-        send(&mut ws_a, ClientEvent::CreateObject(cube_payload(obj_a))),
-        send(&mut ws_b, ClientEvent::CreateObject(cube_payload(obj_b)))
+        send(&mut ws_a, ClientEvent::CreateObject(asset_payload(obj_a, "Dragon", asset_a, asset_library_a ))),
+        send(&mut ws_b, ClientEvent::CreateObject(asset_payload(obj_b, "Tree", asset_b, asset_library_b))),
     );
 
     // Collect two ObjectCreated events per client (order not guaranteed).
