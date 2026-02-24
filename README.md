@@ -14,6 +14,10 @@
 
 ---
 
+## Architecture Diagram (In Progress) 
+<img width="1507" height="674" alt="image" src="https://github.com/user-attachments/assets/7e35ad55-39a7-4034-b3b6-aa603eee2b75" />
+
+
 ## 🚀 About
 
 **Meerkat** is an open-source Blender plugin enabling real-time collaborative editing inside Blender.
