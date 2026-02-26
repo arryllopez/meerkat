@@ -1,5 +1,6 @@
 <p align="center">
-  <img src="meerkat.png" alt="Meerkat Logo" width="200"/>
+ <img width="250" height="250" alt="Gemini_Generated_Image_mc8lg1mc8lg1mc8l-removebg-preview" src="https://github.com/user-attachments/assets/f940d17a-4224-4fe2-a07d-3a2ebd3b8672" />
+
 </p>
 
 <h3 align="center">Real-time collaboration in Blender coming soon...</h3>
