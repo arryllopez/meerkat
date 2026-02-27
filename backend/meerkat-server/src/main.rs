@@ -5,12 +5,17 @@ use meerkat_server::{types::AppState, websocket::handler};
 
 #[tokio::main(flavor = "multi_thread", worker_threads = 10)]
 async fn main() {
+    // format all output 
     tracing_subscriber::fmt()
         .json()
         .init();
 
+    // Three arc maps created for 
+    // sessions : assign a session for each session id 
+    // connections : maps connection id to a sender 
+    // connection_meta : maps connection id to 
     let state = AppState {
-        sessions: Arc::new(DashMap::new()),
+        sessions: Arc::new(DashMap::new()), 
         connections: Arc::new(DashMap::new()),
         connection_meta: Arc::new(DashMap::new()),
     };
