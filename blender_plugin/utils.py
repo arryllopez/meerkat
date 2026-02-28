@@ -21,3 +21,23 @@ def load_asset_library(filepath):
     state.asset_library_objects = names
     print(f"[Meerkat] Loaded {len(names)} assets from {os.path.basename(filepath)}: {names}")
     return names
+
+#helper to return object id , expected to return a string 
+def get_meerkat_id(obj) -> str | None: 
+    return obj.get("meerkat_id") 
+
+#helper to find object given uuid
+def find_object_by_meerkat_id(uuid):
+    for obj in bpy.data.objects:
+        if obj.get("meerkat_id") == uuid:
+            return obj
+    return None
+
+#   convert vector and euler --> list 
+# all would be in this format [x,y,z] 
+def build_transform(obj):
+    return {
+        "position": list(obj.location),
+        "rotation": list(obj.rotation_euler),
+        "scale": list(obj.scale),
+    }

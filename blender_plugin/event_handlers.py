@@ -23,6 +23,10 @@ def timer_function():
             handle_full_state_sync(payload)
         elif event_type == "ObjectCreated":
             handle_object_created(payload)
+        elif event_type == "UserJoined":
+            handle_user_joined(payload)
+        elif event_type == "UserLeft":
+            handle_user_left(payload)
 
     return timer
 
@@ -60,13 +64,163 @@ def handle_full_state_sync(payload):
         state.is_applying_remote_update = False
 
 
+def _apply_transform(obj, transform):
+    """Set position, rotation, scale on a Blender object from a transform dict."""
+    pos = transform.get("position", [0, 0, 0])
+    rot = transform.get("rotation", [0, 0, 0])
+    scl = transform.get("scale", [1, 1, 1])
+    obj.location = pos
+    obj.rotation_euler = rot
+    obj.scale = scl
+
+
+def _apply_properties(obj, properties):
+    """Apply type-specific properties (camera, lights) to a Blender object."""
+    if not properties:
+        return
+
+    if "Camera" in properties:
+        cam = obj.data
+        p = properties["Camera"]
+        cam.lens = p.get("focal_length", cam.lens)
+        cam.ortho_scale = p.get("orthographic_scale", cam.ortho_scale)
+        cam.shift_x = p.get("shift_x", cam.shift_x)
+        cam.shift_y = p.get("shift_y", cam.shift_y)
+        cam.clip_start = p.get("clip_start", cam.clip_start)
+        cam.clip_end = p.get("clip_end", cam.clip_end)
+        cam.sensor_fit = p.get("sensor_fit", cam.sensor_fit)
+        cam.sensor_width = p.get("sensor_width", cam.sensor_width)
+        cam.sensor_height = p.get("sensor_height", cam.sensor_height)
+
+    elif "PointLight" in properties:
+        light = obj.data
+        p = properties["PointLight"]
+        if "color" in p:
+            light.color = p["color"]
+        light.energy = p.get("power", light.energy)
+        light.shadow_soft_size = p.get("radius", light.shadow_soft_size)
+
+    elif "SunLight" in properties:
+        light = obj.data
+        p = properties["SunLight"]
+        if "color" in p:
+            light.color = p["color"]
+        light.energy = p.get("strength", light.energy)
+        light.angle = p.get("angle", light.angle)
+
+
+def _create_asset_placeholder(obj_id, asset_id, transform):
+    """Create a wireframe cube placeholder when the asset library file is missing."""
+    bpy.ops.mesh.primitive_cube_add()
+    obj = bpy.context.active_object
+    obj.name = f"[MISSING] {asset_id}"
+    obj.display_type = 'WIRE'
+    obj["meerkat_id"] = obj_id
+    _apply_transform(obj, transform)
+    state = PluginState()
+    state.object_map[obj_id] = obj
+    print(f"[Meerkat] Missing asset '{asset_id}' — placed placeholder")
+
+
 def _create_object_from_snapshot(obj_id, obj_data):
-    """Dispatch to the correct Blender object creator by type.
-    Phase 3 fills in the real creation logic — for now just logs."""
+    """Create a Blender object from server data and register it in state."""
+    state = PluginState()
     obj_type = obj_data.get("object_type")
     name = obj_data.get("name", obj_type)
-    print(f"[Meerkat] Would create {obj_type} '{name}' id={obj_id}")
+    transform = obj_data.get("transform", {})
+    properties = obj_data.get("properties")
+
+    obj = None
+
+    if obj_type == "Cube":
+        bpy.ops.mesh.primitive_cube_add()
+        obj = bpy.context.active_object
+    elif obj_type == "Sphere":
+        bpy.ops.mesh.primitive_uv_sphere_add()
+        obj = bpy.context.active_object
+    elif obj_type == "Cylinder":
+        bpy.ops.mesh.primitive_cylinder_add()
+        obj = bpy.context.active_object
+    elif obj_type == "Camera":
+        bpy.ops.object.camera_add()
+        obj = bpy.context.active_object
+    elif obj_type == "PointLight":
+        bpy.ops.object.light_add(type='POINT')
+        obj = bpy.context.active_object
+    elif obj_type == "SunLight":
+        bpy.ops.object.light_add(type='SUN')
+        obj = bpy.context.active_object
+    elif obj_type == "AssetRef":
+        asset_id = obj_data.get("asset_id")
+        asset_library = obj_data.get("asset_library")
+        # Get library path from addon preferences
+        prefs = bpy.context.preferences.addons["blender_plugin"].preferences
+        library_path = prefs.asset_library_path
+
+        if not library_path or not asset_id:
+            _create_asset_placeholder(obj_id, asset_id or "unknown", transform)
+            return
+
+        try:
+            with bpy.data.libraries.load(library_path, link=True) as (data_from, data_to):
+                data_to.objects = [asset_id]
+            obj = bpy.data.objects.get(asset_id)
+            if obj:
+                bpy.context.collection.objects.link(obj)
+            else:
+                _create_asset_placeholder(obj_id, asset_id, transform)
+                return
+        except Exception as e:
+            print(f"[Meerkat] Failed to link asset '{asset_id}': {e}")
+            _create_asset_placeholder(obj_id, asset_id, transform)
+            return
+    else:
+        print(f"[Meerkat] Unknown object type: {obj_type}")
+        return
+
+    if obj is None:
+        print(f"[Meerkat] Failed to create {obj_type}")
+        return
+
+    obj.name = name
+    obj["meerkat_id"] = obj_id
+    _apply_transform(obj, transform)
+    _apply_properties(obj, properties)
+    state.object_map[obj_id] = obj
+    print(f"[Meerkat] Created {obj_type} '{name}' id={obj_id}")
 
 
 def handle_object_created(payload):
-    pass
+    state = PluginState()
+    obj_data = payload.get("object", {})
+    created_by = payload.get("created_by", "")
+
+    # Echo suppression — don't recreate our own objects
+    if created_by == str(state.user_id):
+        return
+
+    state.is_applying_remote_update = True
+    try:
+        obj_id = obj_data.get("object_id", "")
+        _create_object_from_snapshot(obj_id, obj_data)
+    finally:
+        state.is_applying_remote_update = False
+
+
+def handle_user_joined(payload):
+    state = PluginState()
+    user_id = payload.get("user_id", "")
+    state.users[user_id] = {
+        "display_name": payload.get("display_name", "Unknown"),
+        "color": payload.get("color", [200, 200, 200]),
+        "selected_object": None,
+    }
+    print(f"[Meerkat] User joined: {payload.get('display_name')}")
+
+
+def handle_user_left(payload):
+    state = PluginState()
+    user_id = payload.get("user_id", "")
+    removed = state.users.pop(user_id, None)
+    if removed:
+        print(f"[Meerkat] User left: {removed['display_name']}")

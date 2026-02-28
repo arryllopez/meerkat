@@ -42,7 +42,8 @@ pub enum LensType {
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
-pub enum SensorFit {
+#[serde(rename_all = "UPPERCASE")] 
+pub enum SensorFit { // blender sends the camera properties in all caps
     Auto,
     Horizontal,
     Vertical,
