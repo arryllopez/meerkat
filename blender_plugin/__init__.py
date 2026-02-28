@@ -1,5 +1,7 @@
 import bpy
 from . import operators, panels, preferences
+from .event_handlers import timer_function
+
 
 bl_info = {
     "name": "Meerkat",
@@ -22,7 +24,17 @@ classes = [
 def register():
     for cls in classes:
         bpy.utils.register_class(cls)
+    
+    bpy.app.timers.register(timer_function)
+    bpy.types.Scene.meerkat_room_name = bpy.props.StringProperty(name="Room Name", default="")
+    bpy.types.Scene.meerkat_display_name = bpy.props.StringProperty(name="Display Name", default="")
+
 
 def unregister():
     for cls in reversed(classes):
         bpy.utils.unregister_class(cls)
+
+    bpy.app.timers.unregister(timer_function)
+    del bpy.types.Scene.meerkat_room_name
+    del bpy.types.Scene.meerkat_display_name
+

@@ -3,6 +3,8 @@
 # be possible
 from dataclasses import dataclass, field
 from typing import Optional 
+from .websocket_client import WebSocketClient
+
 
 class Singleton(type):
     _instances = {}
@@ -17,6 +19,7 @@ class Singleton(type):
 @dataclass
 class PluginState(metaclass=Singleton):
     connected: bool = False
+    ws_client: WebSocketClient | None = None
     session_id: str = ""
     user_id: str = ""
     display_name: str = ""

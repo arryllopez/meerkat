@@ -20,12 +20,17 @@ class WebSocketClient:
         self.thread = None
         self.incoming = queue.Queue()
         self.running = False
+        self.connected_event = threading.Event()
 
     def connect(self):
         self.running = True
+        self.connected_event.clear()
         self.loop = asyncio.new_event_loop()
         self.thread = threading.Thread(target=self._run_loop, daemon=True)
         self.thread.start()
+        if not self.connected_event.wait(timeout=5):
+            self.running = False
+            raise ConnectionError("WebSocket handshake timed out")
 
     def _run_loop(self):
         assert self.loop is not None
@@ -36,6 +41,7 @@ class WebSocketClient:
         try:
             async with websockets.connect(self.url) as ws:
                 self.ws = ws
+                self.connected_event.set()
                 while self.running:
                     try:
                         raw = await asyncio.wait_for(ws.recv(), timeout=1.0)
