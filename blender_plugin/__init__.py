@@ -1,6 +1,6 @@
 import bpy
 from . import operators, panels, preferences
-from .event_handlers import timer_function
+from .event_handlers import timer_function, timer_function_transforms
 
 
 bl_info = {
@@ -33,6 +33,7 @@ def register():
         bpy.utils.register_class(cls)
     
     bpy.app.timers.register(timer_function)
+    bpy.app.timers.register(timer_function_transforms)
     bpy.types.Scene.meerkat_room_name = bpy.props.StringProperty(name="Room Name", default="")
     bpy.types.Scene.meerkat_display_name = bpy.props.StringProperty(name="Display Name", default="")
     # add keybind here for adding stuff in the viewport
@@ -44,6 +45,7 @@ def unregister():
         bpy.utils.unregister_class(cls)
 
     bpy.app.timers.unregister(timer_function)
+    bpy.app.timers.unregister(timer_function_transforms)
     del bpy.types.Scene.meerkat_room_name
     del bpy.types.Scene.meerkat_display_name
 

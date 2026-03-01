@@ -2,39 +2,46 @@
 import bpy
 import queue
 from .state import PluginState
+from .utils import build_transform
 
 
-def timer_function():
-    timer: float = 0.05
+def _transforms_changed(current, cached):
+    EPSILON = 1e-5
+    for key in ("position", "rotation", "scale"):
+        for a, b in zip(current[key], cached[key]):
+            if abs(a - b) > EPSILON:
+                return True
+    return False
+
+
+def timer_function_transforms():
+    timer: float = 0.033
     state = PluginState()
+
     if not state.connected or not state.ws_client:
         return timer
+    if state.is_applying_remote_update:
+        return timer
 
-    while True:
-        try:
-            msg = state.ws_client.incoming.get_nowait()
-        except queue.Empty:
-            break
+    for meerkat_id, obj in state.object_map.items():
+        if obj is None or obj.name not in bpy.data.objects:
+            continue
 
-        event_type = msg.get("event_type")
-        payload = msg.get("payload")
+        current = build_transform(obj)
+        cached = state.transform_cache.get(meerkat_id)
 
-        if event_type == "FullStateSync":
-            handle_full_state_sync(payload)
-        elif event_type == "ObjectCreated":
-            handle_object_created(payload)
-        elif event_type == "ObjectDeleted":
-            handle_object_deleted(payload)
-        elif event_type == "UserJoined":
-            handle_user_joined(payload)
-        elif event_type == "UserLeft":
-            handle_user_left(payload)
-
-    # Detect local deletions and notify server
-    if not state.is_applying_remote_update:
-        detect_and_send_deletions()
+        if cached is None or _transforms_changed(current, cached):
+            state.transform_cache[meerkat_id] = current
+            state.ws_client.send({
+                "event_type": "UpdateTransform",
+                "payload": {
+                    "object_id": meerkat_id,
+                    "transform": current,
+                }
+            })
 
     return timer
+
 
 
 def handle_full_state_sync(payload):
@@ -54,7 +61,7 @@ def handle_full_state_sync(payload):
         for obj_id, obj_data in objects.items():
             _create_object_from_snapshot(obj_id, obj_data)
 
-        # 3. Rebuild user list
+        # 3. Rebuild user list and find our own user_id
         state.users.clear()
         users = session.get("users", {})
         for user_id, user_data in users.items():
@@ -63,8 +70,11 @@ def handle_full_state_sync(payload):
                 "color": user_data.get("color", [200, 200, 200]),
                 "selected_object": user_data.get("selected_object"),
             }
+            # Match our display_name to learn our server-assigned user_id
+            if user_data.get("display_name") == state.display_name:
+                state.user_id = user_id
 
-        print(f"[Meerkat] FullStateSync: {len(objects)} objects, {len(users)} users")
+        print(f"[Meerkat] FullStateSync: {len(objects)} objects, {len(users)} users, my_id={state.user_id}")
 
     finally:
         state.is_applying_remote_update = False
@@ -261,6 +271,29 @@ def handle_object_deleted(payload):
         state.is_applying_remote_update = False
 
 
+def handle_transform_updated(payload):
+    state = PluginState()
+    object_id = payload.get("object_id", "")
+    updated_by = payload.get("updated_by", "")
+
+    if updated_by == str(state.user_id):
+        return
+
+    state.is_applying_remote_update = True
+    try:
+        obj = state.object_map.get(object_id)
+        if obj is None or obj.name not in bpy.data.objects:
+            return
+
+        transform = payload.get("transform", {})
+        _apply_transform(obj, transform)
+        # Cache what Blender actually stored, not the raw payload,
+        # to avoid floating-point drift triggering a re-send
+        state.transform_cache[object_id] = build_transform(obj)
+    finally:
+        state.is_applying_remote_update = False
+
+
 def handle_user_joined(payload):
     state = PluginState()
     user_id = payload.get("user_id", "")
@@ -278,3 +311,40 @@ def handle_user_left(payload):
     removed = state.users.pop(user_id, None)
     if removed:
         print(f"[Meerkat] User left: {removed['display_name']}")
+        
+
+
+EVENT_HANDLERS = {
+    "FullStateSync": handle_full_state_sync,
+    "ObjectCreated": handle_object_created,
+    "ObjectDeleted": handle_object_deleted,
+    "TransformUpdated": handle_transform_updated,
+    "UserJoined": handle_user_joined,
+    "UserLeft": handle_user_left,
+}
+
+
+def timer_function():
+    timer: float = 0.05
+    state = PluginState()
+    if not state.connected or not state.ws_client:
+        return timer
+
+    while True:
+        try:
+            msg = state.ws_client.incoming.get_nowait()
+        except queue.Empty:
+            break
+
+        event_type = msg.get("event_type")
+        payload = msg.get("payload")
+
+        handler = EVENT_HANDLERS.get(event_type)
+        if handler:
+            handler(payload)
+
+    # Detect local deletions and notify server
+    if not state.is_applying_remote_update:
+        detect_and_send_deletions()
+
+    return timer
