@@ -23,10 +23,16 @@ def timer_function():
             handle_full_state_sync(payload)
         elif event_type == "ObjectCreated":
             handle_object_created(payload)
+        elif event_type == "ObjectDeleted":
+            handle_object_deleted(payload)
         elif event_type == "UserJoined":
             handle_user_joined(payload)
         elif event_type == "UserLeft":
             handle_user_left(payload)
+
+    # Detect local deletions and notify server
+    if not state.is_applying_remote_update:
+        detect_and_send_deletions()
 
     return timer
 
@@ -203,6 +209,54 @@ def handle_object_created(payload):
     try:
         obj_id = obj_data.get("object_id", "")
         _create_object_from_snapshot(obj_id, obj_data)
+    finally:
+        state.is_applying_remote_update = False
+
+
+def detect_and_send_deletions():
+    state = PluginState()
+    if not state.connected or not state.ws_client:
+        return
+
+    deleted = []
+    for meerkat_id, obj in state.object_map.items():
+        if obj is None or obj.name not in bpy.data.objects:
+            deleted.append(meerkat_id)
+
+    for meerkat_id in deleted:
+        state.object_map.pop(meerkat_id, None)
+        state.ws_client.send({
+            "event_type": "DeleteObject",
+            "payload": {
+                "object_id": meerkat_id,
+            }
+        })
+        print(f"[Meerkat] Sent DeleteObject: {meerkat_id}")
+
+
+def handle_object_deleted(payload):
+    state = PluginState()
+    object_id = payload.get("object_id", "")
+    deleted_by = payload.get("deleted_by", "")
+
+    if deleted_by == str(state.user_id):
+        return
+
+    state.is_applying_remote_update = True
+    try:
+        obj = state.object_map.pop(object_id, None)
+        if obj is None:
+            obj = None
+            for o in bpy.data.objects:
+                if o.get("meerkat_id") == object_id:
+                    obj = o
+                    break
+
+        if obj and obj.name in bpy.data.objects:
+            bpy.data.objects.remove(obj, do_unlink=True)
+            print(f"[Meerkat] Deleted object: {object_id}")
+        else:
+            print(f"[Meerkat] Object already gone: {object_id}")
     finally:
         state.is_applying_remote_update = False
 
