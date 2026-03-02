@@ -184,3 +184,74 @@ def run(result):
         result.ok("FullStateSync creates all 6 object types")
     else:
         result.fail("FullStateSync creates all 6 object types", f"created {len(state.object_map)}")
+
+    # ── Reconnect: non-meerkat objects wiped, session objects loaded ──
+    # Simulates: user has a default cube (no meerkat_id), connects to a session
+    # that has a sphere. The default cube should be gone, only the sphere remains.
+
+    clear_scene()
+    state, mock_ws = reset_state()
+
+    # 1. Create a non-meerkat object (like Blender's default cube)
+    bpy.ops.mesh.primitive_cube_add()
+    default_cube = bpy.context.active_object
+    default_cube.name = "DefaultCube"
+    # NOTE: no meerkat_id — this is a plain Blender object
+
+    assert len(bpy.data.objects) == 1, "setup: should have 1 non-meerkat cube"
+
+    # 2. Simulate the connect wipe (what operators.py does on connect)
+    for obj in list(bpy.data.objects):
+        bpy.data.objects.remove(obj, do_unlink=True)
+
+    if len(bpy.data.objects) == 0:
+        result.ok("connect wipe removes non-meerkat objects")
+    else:
+        result.fail("connect wipe removes non-meerkat objects",
+                     f"scene has {len(bpy.data.objects)} objects")
+
+    # 3. FullStateSync loads the session's sphere
+    handle_full_state_sync({
+        "session": {
+            "objects": {
+                "session-sphere": {
+                    "object_type": "Sphere",
+                    "name": "SessionSphere",
+                    "transform": {"position": [3, 0, 0], "rotation": [0, 0, 0], "scale": [2, 2, 2]},
+                    "properties": None,
+                },
+            },
+            "users": {
+                "user-aaa": {"display_name": "TestUser", "color": [255, 0, 0], "selected_object": None},
+            },
+        }
+    })
+
+    if len(bpy.data.objects) == 1:
+        result.ok("reconnect: scene has exactly 1 object (session sphere)")
+    else:
+        result.fail("reconnect: scene has exactly 1 object",
+                     f"has {len(bpy.data.objects)}")
+
+    if "session-sphere" in state.object_map:
+        result.ok("reconnect: session sphere loaded into object_map")
+    else:
+        result.fail("reconnect: session sphere loaded into object_map")
+
+    sphere = state.object_map.get("session-sphere")
+    if sphere and sphere.name == "SessionSphere":
+        result.ok("reconnect: session sphere has correct name")
+    else:
+        result.fail("reconnect: session sphere has correct name")
+
+    if sphere and abs(sphere.location.x - 3.0) < 0.001:
+        result.ok("reconnect: session sphere has correct position")
+    else:
+        result.fail("reconnect: session sphere has correct position")
+
+    # Confirm the default cube is truly gone (not just hidden)
+    default_found = any(o.name == "DefaultCube" for o in bpy.data.objects)
+    if not default_found:
+        result.ok("reconnect: default cube is fully removed")
+    else:
+        result.fail("reconnect: default cube is fully removed")

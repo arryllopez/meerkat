@@ -4,6 +4,14 @@ import queue
 from .state import PluginState
 from .utils import build_transform
 
+# helper for redrawing panel 
+def _redraw_panels():
+    for window in bpy.context.window_manager.windows:
+        for area in window.screen.areas:
+            if area.type == 'VIEW_3D':
+                area.tag_redraw()
+
+
 
 def _transforms_changed(current, cached):
     EPSILON = 1e-5
@@ -173,7 +181,7 @@ def handle_full_state_sync(payload):
             # Match our display_name to learn our server-assigned user_id
             if user_data.get("display_name") == state.display_name:
                 state.user_id = user_id
-
+        _redraw_panels()
         print(f"[Meerkat] FullStateSync: {len(objects)} objects, {len(users)} users, my_id={state.user_id}")
 
     finally:
@@ -426,6 +434,7 @@ def handle_user_joined(payload):
         "color": payload.get("color", [200, 200, 200]),
         "selected_object": None,
     }
+    _redraw_panels()
     print(f"[Meerkat] User joined: {payload.get('display_name')}")
 
 
@@ -433,6 +442,7 @@ def handle_user_left(payload):
     state = PluginState()
     user_id = payload.get("user_id", "")
     removed = state.users.pop(user_id, None)
+    _redraw_panels()
     if removed:
         print(f"[Meerkat] User left: {removed['display_name']}")
 
@@ -492,6 +502,7 @@ EVENT_HANDLERS = {
     "UserJoined": handle_user_joined,
     "UserLeft": handle_user_left,
 }
+
 
 
 def timer_function():

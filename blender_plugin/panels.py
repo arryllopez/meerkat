@@ -22,9 +22,13 @@ class MEERKAT_PT_main_panel(bpy.types.Panel):
             layout.operator("meerkat.disconnect")
 
             layout.separator()
-            layout.label(text="Users")
-            for user_id, user_data in state.users.items():
-                layout.label(text=f"  {user_data['display_name']}")
+            box = layout.box() 
+            box.label(text="Users") 
+            for user_id, info in state.users.items():
+                row = box.row() 
+                row.label(text=info["display_name"])
+                if user_id == str(state.user_id): 
+                    row.label(text="(you)")
 
             layout.separator()
             layout.label(text="Add Object")

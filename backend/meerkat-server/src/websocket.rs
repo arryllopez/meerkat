@@ -17,7 +17,7 @@ use crate::{
         ObjectDeletedPayload, PropertiesUpdatedPayload, ServerEvent, TransformUpdatedPayload,
         UserJoinedPayload, UserLeftPayload, UserSelectedPayload, parse_client_message,
     },
-    types::{AppState, LogEntry, SceneObject, Session, User},
+    types::{AppState, LogEntry, SceneObject, Session, User, COLOR_PALETTE},
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -145,9 +145,11 @@ async fn dispatch(
                 });
 
             let user_id = Uuid::new_v4();
+            let color = COLOR_PALETTE[session.users.len() % COLOR_PALETTE.len()];
+            
             session.users.insert(user_id, User {
                 display_name: payload.display_name.clone(),
-                color: [255, 0, 0], // palette assignment in Phase 5
+                color,
                 selected_object: None,
                 connected_at: now_ms(),
             });
@@ -174,7 +176,7 @@ async fn dispatch(
             let joined_json = serde_json::to_string(&ServerEvent::UserJoined(UserJoinedPayload {
                 user_id,
                 display_name: payload.display_name,
-                color: [255, 0, 0],
+                color,
             }))
             .expect("UserJoined serialization failed");
 

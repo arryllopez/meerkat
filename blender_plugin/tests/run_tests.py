@@ -23,10 +23,12 @@ from blender_plugin.tests import (
     test_echo_suppression,
     test_full_state_sync,
     test_event_dispatch,
+    test_presence,
 )
 
 TEST_MODULES = [
     test_event_dispatch,
+    test_presence,
     test_transforms,
     test_properties,
     test_names,

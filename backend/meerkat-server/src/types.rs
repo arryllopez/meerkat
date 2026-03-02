@@ -4,6 +4,19 @@ use std::sync::Arc;
 use dashmap::DashMap;
 use tokio::sync::mpsc;
 
+pub const COLOR_PALETTE: [[u8; 3]; 10] = [
+    [231, 76, 60],    // red
+    [46, 204, 113],   // green
+    [52, 152, 219],   // blue
+    [241, 196, 15],   // yellow
+    [155, 89, 182],   // purple
+    [230, 126, 34],   // orange
+    [26, 188, 156],   // teal
+    [236, 112, 160],  // pink
+    [149, 165, 166],  // grey
+    [52, 73, 94],     // dark blue
+];
+
 
 
 #[derive(Clone)]
