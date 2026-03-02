@@ -14,6 +14,71 @@ def _transforms_changed(current, cached):
     return False
 
 
+# ── Property builders: read current values from Blender objects ──────────────
+
+def _build_camera_props(obj):
+    cam = obj.data
+    return {"Camera": {
+        "lens_type": "Orthographic" if cam.type == "ORTHO" else "Perspective",
+        "focal_length": cam.lens,
+        "orthographic_scale": cam.ortho_scale,
+        "shift_x": cam.shift_x,
+        "shift_y": cam.shift_y,
+        "clip_start": cam.clip_start,
+        "clip_end": cam.clip_end,
+        "focal_distance": cam.dof.focus_distance,
+        "aperture_fstop": cam.dof.aperture_fstop,
+        "aperture_blades": cam.dof.aperture_blades,
+        "aperture_rotation": cam.dof.aperture_rotation,
+        "aperture_ratio": cam.dof.aperture_ratio,
+        "sensor_fit": cam.sensor_fit,
+        "sensor_width": cam.sensor_width,
+        "sensor_height": cam.sensor_height,
+    }}
+
+
+def _build_point_light_props(obj):
+    light = obj.data
+    return {"PointLight": {
+        "color": list(light.color),
+        "temperature": 6500.0,
+        "exposure": 0.0,
+        "power": light.energy,
+        "radius": light.shadow_soft_size,
+        "soft_falloff": False,
+        "normalize": False,
+    }}
+
+
+def _build_sun_light_props(obj):
+    light = obj.data
+    return {"SunLight": {
+        "color": list(light.color),
+        "temperature": 6500.0,
+        "exposure": 0.0,
+        "normalize": False,
+        "strength": light.energy,
+        "angle": light.angle,
+    }}
+
+
+# Maps Blender obj.type + obj.data.type to property builder
+PROPERTY_BUILDERS = {
+    "CAMERA": _build_camera_props,
+    "POINT":  _build_point_light_props,
+    "SUN":    _build_sun_light_props,
+}
+
+
+def _get_property_builder(obj):
+    """Return the property builder for this object, or None if it has no synced properties."""
+    if obj.type == "CAMERA":
+        return PROPERTY_BUILDERS["CAMERA"]
+    if obj.type == "LIGHT":
+        return PROPERTY_BUILDERS.get(obj.data.type)
+    return None
+
+
 def timer_function_transforms():
     timer: float = 0.033
     state = PluginState()
@@ -24,9 +89,14 @@ def timer_function_transforms():
         return timer
 
     for meerkat_id, obj in state.object_map.items():
-        if obj is None or obj.name not in bpy.data.objects:
+        try:
+            gone = obj is None or obj.name not in bpy.data.objects
+        except ReferenceError:
+            continue
+        if gone:
             continue
 
+        # --- Transform polling ---
         current = build_transform(obj)
         cached = state.transform_cache.get(meerkat_id)
 
@@ -37,6 +107,36 @@ def timer_function_transforms():
                 "payload": {
                     "object_id": meerkat_id,
                     "transform": current,
+                }
+            })
+
+        # --- Property polling ---
+        builder = _get_property_builder(obj)
+        if builder:
+            current_props = builder(obj)
+            cached_props = state.property_cache.get(meerkat_id)
+            if current_props != cached_props:
+                state.property_cache[meerkat_id] = current_props
+                state.ws_client.send({
+                    "event_type": "UpdateProperties",
+                    "payload": {
+                        "object_id": meerkat_id,
+                        "properties": current_props,
+                    }
+                })
+
+        # --- Name polling ---
+        current_name = obj.name
+        cached_name = state.name_cache.get(meerkat_id)
+        if cached_name is None:
+            state.name_cache[meerkat_id] = current_name
+        elif current_name != cached_name:
+            state.name_cache[meerkat_id] = current_name
+            state.ws_client.send({
+                "event_type": "UpdateName",
+                "payload": {
+                    "object_id": meerkat_id,
+                    "name": current_name,
                 }
             })
 
@@ -250,7 +350,11 @@ def detect_and_send_deletions():
 
     deleted = []
     for meerkat_id, obj in state.object_map.items():
-        if obj is None or obj.name not in bpy.data.objects:
+        try:
+            gone = obj is None or obj.name not in bpy.data.objects
+        except ReferenceError:
+            gone = True
+        if gone:
             deleted.append(meerkat_id)
 
     for meerkat_id in deleted:
@@ -331,7 +435,51 @@ def handle_user_left(payload):
     removed = state.users.pop(user_id, None)
     if removed:
         print(f"[Meerkat] User left: {removed['display_name']}")
-        
+
+
+def handle_properties_updated(payload):
+    state = PluginState()
+    object_id = payload.get("object_id", "")
+    updated_by = payload.get("updated_by", "")
+
+    if updated_by == str(state.user_id):
+        return
+
+    state.is_applying_remote_update = True
+    try:
+        obj = state.object_map.get(object_id)
+        if obj is None or obj.name not in bpy.data.objects:
+            return
+
+        properties = payload.get("properties", {})
+        _apply_properties(obj, properties)
+        # Cache what Blender actually stored to avoid drift re-sends
+        builder = _get_property_builder(obj)
+        if builder:
+            state.property_cache[object_id] = builder(obj)
+    finally:
+        state.is_applying_remote_update = False
+
+
+def handle_name_updated(payload):
+    state = PluginState()
+    object_id = payload.get("object_id", "")
+    updated_by = payload.get("updated_by", "")
+
+    if updated_by == str(state.user_id):
+        return
+
+    state.is_applying_remote_update = True
+    try:
+        obj = state.object_map.get(object_id)
+        if obj is None or obj.name not in bpy.data.objects:
+            return
+
+        name = payload.get("name", "")
+        obj.name = name
+        state.name_cache[object_id] = obj.name
+    finally:
+        state.is_applying_remote_update = False
 
 
 EVENT_HANDLERS = {
@@ -339,6 +487,8 @@ EVENT_HANDLERS = {
     "ObjectCreated": handle_object_created,
     "ObjectDeleted": handle_object_deleted,
     "TransformUpdated": handle_transform_updated,
+    "PropertiesUpdated": handle_properties_updated,
+    "NameUpdated": handle_name_updated,
     "UserJoined": handle_user_joined,
     "UserLeft": handle_user_left,
 }
@@ -368,3 +518,5 @@ def timer_function():
         detect_and_send_deletions()
 
     return timer
+
+

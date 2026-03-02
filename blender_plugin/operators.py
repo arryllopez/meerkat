@@ -57,6 +57,10 @@ class MEERKAT_OT_connect(bpy.types.Operator):
             self.report({'ERROR'}, "Room name and display name are required")
             return {'CANCELLED'}
 
+        # Clear the scene — Meerkat owns the whole scene, start fresh
+        for obj in list(bpy.data.objects):
+            bpy.data.objects.remove(obj, do_unlink=True)
+
         # Create client, connect, and send JoinSession
         client = WebSocketClient(url)
         client.connect()
