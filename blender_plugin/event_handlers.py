@@ -90,39 +90,51 @@ def _apply_transform(obj, transform):
     obj.scale = scl
 
 
+def _apply_camera_props(obj, p):
+    cam = obj.data
+    cam.lens = p.get("focal_length", cam.lens)
+    cam.ortho_scale = p.get("orthographic_scale", cam.ortho_scale)
+    cam.shift_x = p.get("shift_x", cam.shift_x)
+    cam.shift_y = p.get("shift_y", cam.shift_y)
+    cam.clip_start = p.get("clip_start", cam.clip_start)
+    cam.clip_end = p.get("clip_end", cam.clip_end)
+    cam.sensor_fit = p.get("sensor_fit", cam.sensor_fit)
+    cam.sensor_width = p.get("sensor_width", cam.sensor_width)
+    cam.sensor_height = p.get("sensor_height", cam.sensor_height)
+
+
+def _apply_point_light_props(obj, p):
+    light = obj.data
+    if "color" in p:
+        light.color = p["color"]
+    light.energy = p.get("power", light.energy)
+    light.shadow_soft_size = p.get("radius", light.shadow_soft_size)
+
+
+def _apply_sun_light_props(obj, p):
+    light = obj.data
+    if "color" in p:
+        light.color = p["color"]
+    light.energy = p.get("strength", light.energy)
+    light.angle = p.get("angle", light.angle)
+
+
+PROPERTY_APPLIERS = {
+    "Camera": _apply_camera_props,
+    "PointLight": _apply_point_light_props,
+    "SunLight": _apply_sun_light_props,
+}
+
+
 def _apply_properties(obj, properties):
     """Apply type-specific properties (camera, lights) to a Blender object."""
     if not properties:
         return
 
-    if "Camera" in properties:
-        cam = obj.data
-        p = properties["Camera"]
-        cam.lens = p.get("focal_length", cam.lens)
-        cam.ortho_scale = p.get("orthographic_scale", cam.ortho_scale)
-        cam.shift_x = p.get("shift_x", cam.shift_x)
-        cam.shift_y = p.get("shift_y", cam.shift_y)
-        cam.clip_start = p.get("clip_start", cam.clip_start)
-        cam.clip_end = p.get("clip_end", cam.clip_end)
-        cam.sensor_fit = p.get("sensor_fit", cam.sensor_fit)
-        cam.sensor_width = p.get("sensor_width", cam.sensor_width)
-        cam.sensor_height = p.get("sensor_height", cam.sensor_height)
-
-    elif "PointLight" in properties:
-        light = obj.data
-        p = properties["PointLight"]
-        if "color" in p:
-            light.color = p["color"]
-        light.energy = p.get("power", light.energy)
-        light.shadow_soft_size = p.get("radius", light.shadow_soft_size)
-
-    elif "SunLight" in properties:
-        light = obj.data
-        p = properties["SunLight"]
-        if "color" in p:
-            light.color = p["color"]
-        light.energy = p.get("strength", light.energy)
-        light.angle = p.get("angle", light.angle)
+    for key, applier in PROPERTY_APPLIERS.items():
+        if key in properties:
+            applier(obj, properties[key])
+            return
 
 
 def _create_asset_placeholder(obj_id, asset_id, transform):
@@ -138,6 +150,50 @@ def _create_asset_placeholder(obj_id, asset_id, transform):
     print(f"[Meerkat] Missing asset '{asset_id}' — placed placeholder")
 
 
+def _create_primitive(op):
+    """Return a creator function that calls a Blender add operator."""
+    def creator():
+        op()
+        return bpy.context.active_object
+    return creator
+
+
+OBJECT_CREATORS = {
+    "Cube":       _create_primitive(bpy.ops.mesh.primitive_cube_add),
+    "Sphere":     _create_primitive(bpy.ops.mesh.primitive_uv_sphere_add),
+    "Cylinder":   _create_primitive(bpy.ops.mesh.primitive_cylinder_add),
+    "Camera":     _create_primitive(bpy.ops.object.camera_add),
+    "PointLight":  _create_primitive(lambda: bpy.ops.object.light_add(type='POINT')),
+    "SunLight":    _create_primitive(lambda: bpy.ops.object.light_add(type='SUN')),
+}
+
+
+def _create_asset_ref(obj_id, obj_data, transform):
+    """Handle AssetRef creation with library linking and placeholder fallback."""
+    asset_id = obj_data.get("asset_id")
+    prefs = bpy.context.preferences.addons["blender_plugin"].preferences
+    library_path = prefs.asset_library_path
+
+    if not library_path or not asset_id:
+        _create_asset_placeholder(obj_id, asset_id or "unknown", transform)
+        return None
+
+    try:
+        with bpy.data.libraries.load(library_path, link=True) as (data_from, data_to):
+            data_to.objects = [asset_id]
+        obj = bpy.data.objects.get(asset_id)
+        if obj:
+            bpy.context.collection.objects.link(obj)
+            return obj
+        else:
+            _create_asset_placeholder(obj_id, asset_id, transform)
+            return None
+    except Exception as e:
+        print(f"[Meerkat] Failed to link asset '{asset_id}': {e}")
+        _create_asset_placeholder(obj_id, asset_id, transform)
+        return None
+
+
 def _create_object_from_snapshot(obj_id, obj_data):
     """Create a Blender object from server data and register it in state."""
     state = PluginState()
@@ -146,53 +202,17 @@ def _create_object_from_snapshot(obj_id, obj_data):
     transform = obj_data.get("transform", {})
     properties = obj_data.get("properties")
 
-    obj = None
-
-    if obj_type == "Cube":
-        bpy.ops.mesh.primitive_cube_add()
-        obj = bpy.context.active_object
-    elif obj_type == "Sphere":
-        bpy.ops.mesh.primitive_uv_sphere_add()
-        obj = bpy.context.active_object
-    elif obj_type == "Cylinder":
-        bpy.ops.mesh.primitive_cylinder_add()
-        obj = bpy.context.active_object
-    elif obj_type == "Camera":
-        bpy.ops.object.camera_add()
-        obj = bpy.context.active_object
-    elif obj_type == "PointLight":
-        bpy.ops.object.light_add(type='POINT')
-        obj = bpy.context.active_object
-    elif obj_type == "SunLight":
-        bpy.ops.object.light_add(type='SUN')
-        obj = bpy.context.active_object
-    elif obj_type == "AssetRef":
-        asset_id = obj_data.get("asset_id")
-        asset_library = obj_data.get("asset_library")
-        # Get library path from addon preferences
-        prefs = bpy.context.preferences.addons["blender_plugin"].preferences
-        library_path = prefs.asset_library_path
-
-        if not library_path or not asset_id:
-            _create_asset_placeholder(obj_id, asset_id or "unknown", transform)
-            return
-
-        try:
-            with bpy.data.libraries.load(library_path, link=True) as (data_from, data_to):
-                data_to.objects = [asset_id]
-            obj = bpy.data.objects.get(asset_id)
-            if obj:
-                bpy.context.collection.objects.link(obj)
-            else:
-                _create_asset_placeholder(obj_id, asset_id, transform)
-                return
-        except Exception as e:
-            print(f"[Meerkat] Failed to link asset '{asset_id}': {e}")
-            _create_asset_placeholder(obj_id, asset_id, transform)
+    # AssetRef has special handling (library linking + placeholder fallback)
+    if obj_type == "AssetRef":
+        obj = _create_asset_ref(obj_id, obj_data, transform)
+        if obj is None:
             return
     else:
-        print(f"[Meerkat] Unknown object type: {obj_type}")
-        return
+        creator = OBJECT_CREATORS.get(obj_type)
+        if not creator:
+            print(f"[Meerkat] Unknown object type: {obj_type}")
+            return
+        obj = creator()
 
     if obj is None:
         print(f"[Meerkat] Failed to create {obj_type}")
