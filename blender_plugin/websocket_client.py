@@ -11,6 +11,9 @@ import queue
 import websockets
 
 
+RECONNECT_DELAYS = [3, 9, 27]  # powers of 3, ~39s total
+
+
 class WebSocketClient:
 
     def __init__(self, url):
@@ -21,8 +24,12 @@ class WebSocketClient:
         self.incoming = queue.Queue()
         self.running = False
         self.connected_event = threading.Event()
+        self.session_id = ""
+        self.display_name = ""
 
-    def connect(self):
+    def connect(self, session_id="", display_name=""):
+        self.session_id = session_id
+        self.display_name = display_name
         self.running = True
         self.connected_event.clear()
         self.loop = asyncio.new_event_loop()
@@ -38,23 +45,75 @@ class WebSocketClient:
         self.loop.run_until_complete(self._listen())
 
     async def _listen(self):
-        try:
-            async with websockets.connect(self.url) as ws:
-                self.ws = ws
-                self.connected_event.set()
-                while self.running:
-                    try:
-                        raw = await asyncio.wait_for(ws.recv(), timeout=1.0)
-                        msg = json.loads(raw)
-                        self.incoming.put(msg)
-                    except asyncio.TimeoutError:
-                        continue
-                    except websockets.ConnectionClosed:
-                        break
-        except Exception as e:
-            self.incoming.put({"event_type": "Error", "payload": {"code": "CONNECTION_ERROR", "message": str(e)}})
-        finally:
-            self.running = False
+        from .state import PluginState
+        state = PluginState()
+        retry_index = 0
+        is_first_connect = True
+
+        while self.running:
+            try:
+                async with websockets.connect(self.url) as ws:
+                    self.ws = ws
+                    self.connected_event.set()
+                    state.reconnecting = False
+                    state.reconnect_attempt = 0
+                    retry_index = 0  # reset on successful connection
+
+                    # re-send JoinSession only on reconnect (not first connect)
+                    if not is_first_connect and self.session_id and self.display_name:
+                        join_msg = json.dumps({
+                            "event_type": "JoinSession",
+                            "payload": {
+                                "session_id": self.session_id,
+                                "display_name": self.display_name,
+                            }
+                        })
+                        await ws.send(join_msg)
+
+                    is_first_connect = False
+
+                    while self.running:
+                        try:
+                            raw = await asyncio.wait_for(ws.recv(), timeout=1.0)
+                            msg = json.loads(raw)
+                            self.incoming.put(msg)
+                        except asyncio.TimeoutError:
+                            continue
+                        except websockets.ConnectionClosed:
+                            break
+
+            except Exception:
+                pass  # fall through to retry logic below
+
+            # --- Retry logic ---
+            if not self.running or state.intentional_disconnect:
+                break
+
+            if retry_index >= len(RECONNECT_DELAYS):
+                print("[Meerkat] Reconnect failed after all attempts.")
+                state.reconnecting = False
+                state.reconnect_attempt = 0
+                state.connected = False
+                break
+
+            delay = RECONNECT_DELAYS[retry_index]
+            retry_index += 1
+            state.reconnecting = True
+            state.reconnect_attempt = retry_index
+            print(f"[Meerkat] Connection lost. Reconnecting ({retry_index}/{len(RECONNECT_DELAYS)}) in {delay}s...")
+
+            try:
+                await asyncio.sleep(delay)
+            except asyncio.CancelledError:
+                break
+
+            if not self.running or state.intentional_disconnect:
+                break
+
+            # loop back to the top -> websockets.connect() again
+
+        self.ws = None
+        self.running = False
 
     def send(self, message_dict):
         if self.ws and self.loop and self.running:

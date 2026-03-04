@@ -30,3 +30,9 @@ class PluginState(metaclass=Singleton):
     transform_cache: dict = field(default_factory=dict)        # meerkat_id -> {position, rotation, scale}
     property_cache: dict = field(default_factory=dict)         # meerkat_id -> last sent properties dict
     name_cache: dict = field(default_factory=dict)             # meerkat_id -> last sent obj.name
+    last_selected: str | None = None                             # meerkat_id of last selected object (or None)
+    draw_handler: object | None = None                           # SpaceView3D draw handler reference
+    reconnecting: bool = False 
+    reconnect_attempt :int = 0 
+    intentional_disconnect : bool = False 
+    

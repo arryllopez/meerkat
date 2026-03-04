@@ -13,14 +13,13 @@ class MEERKAT_PT_main_panel(bpy.types.Panel):
         layout = self.layout
         state = PluginState()
 
-        if not state.connected:
+        if state.reconnecting:
+            layout.label(text=f"Reconnecting ({state.reconnect_attempt}/{3})...", icon='TIME')
+        elif not state.connected:
             layout.prop(context.scene, "meerkat_room_name")
             layout.prop(context.scene, "meerkat_display_name")
             layout.operator("meerkat.connect")
         else:
-            layout.label(text=f"Connected: {state.session_id}")
-            layout.operator("meerkat.disconnect")
-
             layout.separator()
             box = layout.box() 
             box.label(text="Users") 
@@ -45,5 +44,9 @@ class MEERKAT_PT_main_panel(bpy.types.Panel):
                 layout.separator()
                 layout.label(text="Asset Library")
                 layout.operator("meerkat.place_asset")
+
+            layout.separator()
+            layout.operator("meerkat.save_scene", icon='FILE_TICK')
+            layout.operator("meerkat.disconnect", icon='CANCEL')
             
 

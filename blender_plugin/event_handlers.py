@@ -158,10 +158,14 @@ def handle_full_state_sync(payload):
 
     try:
         # 1. Delete all existing Meerkat-managed objects from the scene
-        objs_to_remove = [obj for obj in bpy.data.objects if "meerkat_id" in obj]
+        objs_to_remove = list(bpy.data.objects)
         for obj in objs_to_remove:
             bpy.data.objects.remove(obj, do_unlink=True)
         state.object_map.clear()
+        state.transform_cache.clear() 
+        state.property_cache.clear()
+        state.name_cache.clear() 
+        state.last_selected = None 
 
         # 2. Recreate objects from the session snapshot
         session = payload.get("session", {})
@@ -492,6 +496,19 @@ def handle_name_updated(payload):
         state.is_applying_remote_update = False
 
 
+def handle_user_selected(payload):
+    state = PluginState()
+    user_id = payload.get("user_id", "")
+    object_id = payload.get("object_id")  # can be None (deselect)
+
+    if user_id == str(state.user_id):
+        return
+
+    if user_id in state.users:
+        state.users[user_id]["selected_object"] = object_id
+    _redraw_panels()
+
+
 EVENT_HANDLERS = {
     "FullStateSync": handle_full_state_sync,
     "ObjectCreated": handle_object_created,
@@ -501,6 +518,7 @@ EVENT_HANDLERS = {
     "NameUpdated": handle_name_updated,
     "UserJoined": handle_user_joined,
     "UserLeft": handle_user_left,
+    "UserSelected": handle_user_selected,
 }
 
 
@@ -527,6 +545,22 @@ def timer_function():
     # Detect local deletions and notify server
     if not state.is_applying_remote_update:
         detect_and_send_deletions()
+
+    # --- Selection polling ---
+    if not state.is_applying_remote_update:
+        active = bpy.context.view_layer.objects.active if bpy.context.view_layer else None
+        current_selected = None
+        if active and "meerkat_id" in active:
+            current_selected = active["meerkat_id"]
+
+        if current_selected != state.last_selected:
+            state.last_selected = current_selected
+            state.ws_client.send({
+                "event_type": "SelectObject",
+                "payload": {
+                    "object_id": current_selected,
+                }
+            })
 
     return timer
 

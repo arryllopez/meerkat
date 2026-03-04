@@ -73,6 +73,7 @@ pub enum ClientEvent {
     UpdateProperties(UpdatePropertiesPayload),
     UpdateName(UpdateNamePayload),
     SelectObject(SelectObjectPayload),
+    RequestStateSync,
 }
 
 // ── Server → Client payloads ──────────────────────────────────────────────────

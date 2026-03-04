@@ -24,6 +24,8 @@ from blender_plugin.tests import (
     test_full_state_sync,
     test_event_dispatch,
     test_presence,
+    test_reconnect,
+    test_save_scene,
 )
 
 TEST_MODULES = [
@@ -35,6 +37,8 @@ TEST_MODULES = [
     test_deletion,
     test_echo_suppression,
     test_full_state_sync,
+    test_reconnect,
+    test_save_scene,
 ]
 
 

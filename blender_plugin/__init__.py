@@ -1,6 +1,7 @@
 import bpy
 from . import operators, panels, preferences
 from .event_handlers import timer_function, timer_function_transforms
+from .selection_overlay import register_draw_handler, unregister_draw_handler
 
 
 bl_info = {
@@ -25,6 +26,7 @@ classes = [
     operators.MEERKAT_OT_add_point_light,
     operators.MEERKAT_OT_add_sun_light,
     operators.MEERKAT_OT_place_asset,
+    operators.MEERKAT_OT_save_scene,
     panels.MEERKAT_PT_main_panel,
 ]
 
@@ -34,6 +36,7 @@ def register():
     
     bpy.app.timers.register(timer_function)
     bpy.app.timers.register(timer_function_transforms)
+    register_draw_handler()
     bpy.types.Scene.meerkat_room_name = bpy.props.StringProperty(name="Room Name", default="")
     bpy.types.Scene.meerkat_display_name = bpy.props.StringProperty(name="Display Name", default="")
     # add keybind here for adding stuff in the viewport
@@ -46,6 +49,7 @@ def unregister():
 
     bpy.app.timers.unregister(timer_function)
     bpy.app.timers.unregister(timer_function_transforms)
+    unregister_draw_handler()
     del bpy.types.Scene.meerkat_room_name
     del bpy.types.Scene.meerkat_display_name
 

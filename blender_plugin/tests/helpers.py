@@ -26,6 +26,10 @@ def reset_state():
     state.property_cache.clear()
     state.name_cache.clear()
     state.asset_library_objects.clear()
+    state.last_selected = None
+    state.reconnecting = False
+    state.reconnect_attempt = 0
+    state.intentional_disconnect = False
 
     mock_ws = MockWebSocketClient()
     state.ws_client = mock_ws

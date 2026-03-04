@@ -62,8 +62,9 @@ class MEERKAT_OT_connect(bpy.types.Operator):
             bpy.data.objects.remove(obj, do_unlink=True)
 
         # Create client, connect, and send JoinSession
+        state.intentional_disconnect = False
         client = WebSocketClient(url)
-        client.connect()
+        client.connect(session_id=room_name, display_name=display_name)
 
         state.ws_client = client
         state.session_id = room_name
@@ -99,7 +100,7 @@ class MEERKAT_OT_disconnect(bpy.types.Operator):
             "event_type": "LeaveSession",
             "payload": None,
         })
-
+        state.intentional_disconnect = True 
         state.ws_client.disconnect()
         state.ws_client = None
         state.connected = False
@@ -304,4 +305,29 @@ class MEERKAT_OT_place_asset(bpy.types.Operator):
             asset_id=asset_name,
             asset_library=os.path.basename(library_path),
         )
+        return {'FINISHED'}
+
+
+# ── Save Scene operator ─────────────────────────────────────────────────────
+
+class MEERKAT_OT_save_scene(bpy.types.Operator):
+    bl_idname = "meerkat.save_scene"
+    bl_label = "Save Scene"
+    bl_description = "Request latest state from server and save as a .blend file"
+
+    def execute(self, context):
+        state = PluginState()
+        if not state.connected or not state.ws_client:
+            self.report({'ERROR'}, "Not connected to a session")
+            return {'CANCELLED'}
+
+        # Request fresh state from the server
+        state.ws_client.send({
+            "event_type": "RequestStateSync",
+            "payload": None,
+        })
+
+        # Open file browser to save
+        bpy.ops.wm.save_as_mainfile('INVOKE_DEFAULT')
+        self.report({'INFO'}, "Scene saved")
         return {'FINISHED'}
