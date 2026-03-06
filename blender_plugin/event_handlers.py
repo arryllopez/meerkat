@@ -284,7 +284,7 @@ def _create_asset_ref(obj_id, obj_data, transform):
     """Handle AssetRef creation with library linking and placeholder fallback.
     Links the root asset and all its descendants to preserve hierarchy."""
     asset_id = obj_data.get("asset_id")
-    prefs = bpy.context.preferences.addons["blender_plugin"].preferences
+    prefs = bpy.context.preferences.addons[__package__].preferences
     library_path = prefs.asset_library_path
 
     if not library_path or not asset_id:
@@ -554,6 +554,7 @@ def timer_function():
 
         event_type = msg.get("event_type")
         payload = msg.get("payload")
+        print(f"[Meerkat] <<< {event_type}: {payload}")
 
         handler = EVENT_HANDLERS.get(event_type)
         if handler:
