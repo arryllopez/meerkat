@@ -2,6 +2,11 @@ import bpy
 from bpy.props import StringProperty
 
 
+def _on_asset_library_changed(self, context):
+    from .utils import load_asset_library
+    load_asset_library(self.asset_library_path)
+
+
 class MeerkatPreferences(bpy.types.AddonPreferences):
     bl_idname = __package__
 
@@ -16,6 +21,7 @@ class MeerkatPreferences(bpy.types.AddonPreferences):
         description="Path to shared .blend asset library file",
         subtype='FILE_PATH',
         default="",
+        update=_on_asset_library_changed,
     )
 
     def draw(self, context):

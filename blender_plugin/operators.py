@@ -272,6 +272,9 @@ class MEERKAT_OT_place_asset(bpy.types.Operator):
 
     asset_name: bpy.props.EnumProperty(name="Asset", items=_get_asset_items)
 
+    def invoke(self, context, event):
+        return context.window_manager.invoke_props_dialog(self)
+
     def execute(self, context):
         state = PluginState()
         if not state.connected:
@@ -285,23 +288,33 @@ class MEERKAT_OT_place_asset(bpy.types.Operator):
         library_path = prefs.asset_library_path
         asset_name = self.asset_name
 
-        # Link the object from the local .blend library
+        # Build list of objects to link: root + all descendants
+        objects_to_link = [asset_name]
+        descendants = state.asset_hierarchy.get(asset_name, [])
+        objects_to_link.extend(descendants)
+
+        # Link all objects from the local .blend library
         try:
             with bpy.data.libraries.load(library_path, link=True) as (data_from, data_to):
-                data_to.objects = [asset_name]
+                data_to.objects = objects_to_link
         except Exception as e:
             self.report({'ERROR'}, f"Failed to link asset: {e}")
             return {'CANCELLED'}
 
-        # Find the newly linked object and add it to the scene
-        linked_obj = bpy.data.objects.get(asset_name)
-        if not linked_obj:
+        # Add all linked objects to the scene collection
+        root_obj = None
+        for obj in data_to.objects:
+            if obj is not None:
+                context.collection.objects.link(obj)
+                if obj.name == asset_name:
+                    root_obj = obj
+
+        if not root_obj:
             self.report({'ERROR'}, f"Asset '{asset_name}' not found after linking")
             return {'CANCELLED'}
 
-        context.collection.objects.link(linked_obj)
         _send_create_object(
-            linked_obj, "AssetRef",
+            root_obj, "AssetRef",
             asset_id=asset_name,
             asset_library=os.path.basename(library_path),
         )
