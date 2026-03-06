@@ -27,6 +27,7 @@ class PluginState(metaclass=Singleton):
     users: dict = field(default_factory=dict)             # user_id -> {display_name, color, selected_object}
     is_applying_remote_update: bool = False
     asset_library_objects: list = field(default_factory=list)  # names from the shared .blend library
+    asset_hierarchy: dict = field(default_factory=dict)          # root_name -> [child_names]
     transform_cache: dict = field(default_factory=dict)        # meerkat_id -> {position, rotation, scale}
     property_cache: dict = field(default_factory=dict)         # meerkat_id -> last sent properties dict
     name_cache: dict = field(default_factory=dict)             # meerkat_id -> last sent obj.name

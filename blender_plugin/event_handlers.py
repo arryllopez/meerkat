@@ -281,22 +281,39 @@ OBJECT_CREATORS = {
 
 
 def _create_asset_ref(obj_id, obj_data, transform):
-    """Handle AssetRef creation with library linking and placeholder fallback."""
+    """Handle AssetRef creation with library linking and placeholder fallback.
+    Links the root asset and all its descendants to preserve hierarchy."""
     asset_id = obj_data.get("asset_id")
-    prefs = bpy.context.preferences.addons["blender_plugin"].preferences
+    prefs = bpy.context.preferences.addons[__package__].preferences
     library_path = prefs.asset_library_path
 
     if not library_path or not asset_id:
         _create_asset_placeholder(obj_id, asset_id or "unknown", transform)
         return None
 
+    state = PluginState()
+    objects_to_link = [asset_id]
+    descendants = state.asset_hierarchy.get(asset_id, [])
+    objects_to_link.extend(descendants)
+    print(f"[Meerkat] Linking asset '{asset_id}' with {len(descendants)} descendants from {library_path}")
+
     try:
         with bpy.data.libraries.load(library_path, link=True) as (data_from, data_to):
-            data_to.objects = [asset_id]
-        obj = bpy.data.objects.get(asset_id)
-        if obj:
-            bpy.context.collection.objects.link(obj)
-            return obj
+            data_to.objects = objects_to_link
+
+        root_obj = None
+        linked_count = 0
+        for obj in data_to.objects:
+            if obj is not None:
+                bpy.context.collection.objects.link(obj)
+                linked_count += 1
+                if obj.name == asset_id:
+                    root_obj = obj
+
+        print(f"[Meerkat] Linked {linked_count}/{len(objects_to_link)} objects, root found: {root_obj is not None}")
+
+        if root_obj:
+            return root_obj
         else:
             _create_asset_placeholder(obj_id, asset_id, transform)
             return None
@@ -537,10 +554,16 @@ def timer_function():
 
         event_type = msg.get("event_type")
         payload = msg.get("payload")
+        print(f"[Meerkat] <<< {event_type}: {payload}")
 
         handler = EVENT_HANDLERS.get(event_type)
         if handler:
-            handler(payload)
+            try:
+                handler(payload)
+            except Exception as e:
+                print(f"[Meerkat] ERROR handling {event_type}: {e}")
+                import traceback
+                traceback.print_exc()
 
     # Detect local deletions and notify server
     if not state.is_applying_remote_update:
