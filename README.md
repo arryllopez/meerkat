@@ -1,81 +1,179 @@
-<p align= "center">
+# Meerkat
 
-https://github.com/user-attachments/assets/011e1c0d-1a4e-428d-94ed-4320cd8c55af
+[![License: GPLv3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
+[![Status](https://img.shields.io/badge/status-in%20development-orange)](https://github.com/arryllopez/meerkat)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/arryllopez/meerkat/pulls)
+[![GitHub Stars](https://img.shields.io/github/stars/arryllopez/meerkat?style=social)](https://github.com/arryllopez/meerkat)
+[![Rust](https://img.shields.io/badge/Rust-1.75+-orange?logo=rust)](https://www.rust-lang.org/)
+[![Python](https://img.shields.io/badge/Python-3.10+-blue?logo=python&logoColor=white)](https://www.python.org/)
+[![Blender](https://img.shields.io/badge/Blender-4.0+-orange?logo=blender&logoColor=white)](https://www.blender.org/)
+[![Tokio](https://img.shields.io/badge/Tokio-async-brightgreen?logo=rust)](https://tokio.rs/)
+[![Axum](https://img.shields.io/badge/Axum-web-lightgrey?logo=rust)](https://github.com/tokio-rs/axum)
+[![WebSocket](https://img.shields.io/badge/WebSocket-realtime-blue)](https://developer.mozilla.org/en-US/docs/Web/API/WebSocket)
+[![macOS](https://img.shields.io/badge/macOS-000000?logo=apple&logoColor=white)](https://github.com/arryllopez/meerkat)
+[![Linux](https://img.shields.io/badge/Linux-FCC624?logo=linux&logoColor=black)](https://github.com/arryllopez/meerkat)
+[![Windows](https://img.shields.io/badge/Windows-0078D6?logo=windows&logoColor=white)](https://github.com/arryllopez/meerkat)
 
+Real-time collaborative editing inside Blender — multiplayer scene editing, live transforms, and shared sessions.
 
-
+<p align="center">
+  <video src="https://github.com/user-attachments/assets/011e1c0d-1a4e-428d-94ed-4320cd8c55af" controls width="720"></video>
 </p>
 
 <p align="center">
- <img width="250" height="250" alt="Gemini_Generated_Image_mc8lg1mc8lg1mc8l-removebg-preview" src="https://github.com/user-attachments/assets/f940d17a-4224-4fe2-a07d-3a2ebd3b8672" />
-
+  <img width="1200" height="300" alt="Lawrence Arryl Lopez (4)" src="https://github.com/user-attachments/assets/666d8da2-ad8a-41bc-b5ed-7149cd0decb6" />
 </p>
 
-<h3 align="center">Real-time collaboration in Blender coming soon...</h3>
-
-<p align="center">
-  <a href="https://www.gnu.org/licenses/gpl-3.0">
-    <img src="https://img.shields.io/badge/License-GPLv3-blue.svg" alt="GPLv3 License">
-  </a>
-  <img src="https://img.shields.io/badge/status-in%20development-orange" alt="Status">
-  <img src="https://img.shields.io/github/stars/arryllopez/meerkat?style=social" alt="GitHub stars">
-</p>
+<h3 align="center">Real-time collaboration in Blender — coming soon.</h3>
 
 ---
 
-## Architecture Diagram (In Progress) 
-<img width="1507" height="674" alt="image" src="https://github.com/user-attachments/assets/7e35ad55-39a7-4034-b3b6-aa603eee2b75" />
+## Why Meerkat?
 
+Blender has no built-in real-time collaboration. If you're working with a team, you're juggling `.blend` file versions over chat or cloud sync — hoping nobody overwrites each other's work.
 
-## 🚀 About
+Meerkat fixes that.
 
-**Meerkat** is an open-source Blender plugin enabling real-time collaborative editing inside Blender.
-
-Think:
-- Multiplayer scene editing
-- Live transforms
-- Shared sessions
-- Conflict resolution
-- Presence indicators
-
----
-
-## 📦 Installation (Coming Soon)
-
-Instructions will be added once the first alpha release is ready.
+| Feature | Meerkat | Manual File Sync | Proprietary Alternatives |
+|---------|:-------:|:----------------:|:------------------------:|
+| Real-time transform sync | ✅ | ❌ | Partial |
+| Conflict resolution | ✅ | ❌ | Partial |
+| Presence indicators | ✅ | ❌ | Some |
+| Open-source | ✅ | ✅ | ❌ |
+| Works inside Blender | ✅ | ❌ | ❌ |
+| Cloud relay (optional) | ✅ | ❌ | ✅ |
+| Peer-to-peer option | ✅ | ❌ | ❌ |
 
 ---
 
-## 🛠 Roadmap
+## Features
 
-- [ ] Core networking layer
+- **Multiplayer Scene Editing** — Multiple artists editing the same scene simultaneously
+- **Live Transforms** — Object position, rotation, and scale synced in real-time
+- **Shared Sessions** — Host or join a session directly from the Blender UI panel
+- **Conflict Resolution** — Handles simultaneous edits gracefully without overwriting work
+- **Presence Indicators** — See who's in the session and what they're selecting
+- **Peer-to-Peer Option** — Direct connections without a relay server when on the same network
+- **Cloud Relay** — Optional hosted relay for remote teams (no port forwarding required)
+
+---
+
+## Architecture
+
+<img width="1507" height="674" alt="Meerkat Architecture Diagram" src="https://github.com/user-attachments/assets/7e35ad55-39a7-4034-b3b6-aa603eee2b75" />
+
+Meerkat is split into two components:
+
+- **Rust backend** (`tokio` + `axum`) — Handles WebSocket sessions, object ID/transform diffing, and relay logic. Only transmits object IDs and transforms rather than full mesh data, keeping bandwidth minimal.
+- **Python Blender plugin** — Hooks into Blender's depsgraph update handlers to capture and broadcast local changes, and applies incoming remote deltas to the scene.
+
+---
+
+## Requirements
+
+### Runtime
+
+| Dependency | Purpose |
+|------------|---------|
+| Blender 4.0+ | Plugin host |
+| Python 3.10+ | Bundled with Blender |
+| Rust 1.75+ | Backend server (if self-hosting) |
+
+### Build (source installs only)
+
+- Rust 1.75+
+- Python 3.10+
+- Blender 4.0+ (for plugin testing)
+
+---
+
+## Installation
+
+> **Alpha not yet released.** Instructions will be finalized for the first release. Watch the repo to be notified.
+
+**From source (backend):**
+```bash
+git clone https://github.com/arryllopez/meerkat.git
+cd meerkat
+cargo build --release
+```
+
+**Plugin (Blender):**
+```
+# Coming soon — will be installable via Blender's Add-on preferences
+Edit → Preferences → Add-ons → Install → select meerkat.zip
+```
+
+---
+
+## Usage
+
+```bash
+# Start the relay server (self-hosted)
+./meerkat-server
+
+# Or connect to the hosted relay — configured directly in the Blender panel
+```
+
+Inside Blender, open the **Meerkat** side panel (`N` key → Meerkat tab):
+
+| Action | Description |
+|--------|-------------|
+| Host Session | Start a new collaborative session |
+| Join Session | Connect to an existing session by ID |
+| Leave Session | Disconnect from the current session |
+| View Peers | See who's currently connected |
+
+---
+
+## Roadmap
+
+- [ ] Core networking layer (WebSocket via `axum` + `tokio`)
 - [ ] Session host & join
 - [ ] Object transform sync
 - [ ] Conflict resolution model
 - [ ] UI panel inside Blender
 - [ ] Peer-to-peer option
 - [ ] Cloud relay (optional)
+- [ ] Camera & light sync
+- [ ] User presence with colored selection highlights
+- [ ] Session persistence
 
 ---
 
-## 🤝 Contributing
+## Development
 
-Contributions are welcome.
+```bash
+cargo build         # Build backend binary
+cargo test          # Run unit/integration tests
+cargo clippy        # Lint (enforced via pre-commit)
+```
+
+**Plugin development:**
+```bash
+# Symlink plugin into Blender's addons directory for live reloading
+ln -s $(pwd)/plugin ~/.config/blender/4.x/scripts/addons/meerkat
+```
+
+---
+
+## Contributing
+
+Contributions are welcome — especially around networking, Blender Python API expertise, and conflict resolution strategies.
 
 1. Fork the repository
-2. Create your feature branch
+2. Create your feature branch (`git checkout -b feat/your-feature`)
 3. Commit your changes
 4. Open a Pull Request
 
 ---
 
-## 📜 License
+## License
 
-This project is licensed under the **GNU General Public License v3.0**.
+Licensed under the **GNU General Public License v3.0**.
 
-This means:
-- You can use, modify, and distribute this software.
+- You can use, modify, and distribute this software freely.
 - Any derivative work must also be open-source under GPLv3.
 - No proprietary forks.
 
-See the LICENSE file for details.
+See the [LICENSE](LICENSE) file for full details.
