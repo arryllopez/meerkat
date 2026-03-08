@@ -298,7 +298,7 @@ def _create_asset_ref(obj_id, obj_data, transform):
     print(f"[Meerkat] Linking asset '{asset_id}' with {len(descendants)} descendants from {library_path}")
 
     try:
-        with bpy.data.libraries.load(library_path, link=True) as (data_from, data_to):
+        with bpy.data.libraries.load(library_path, link=False) as (data_from, data_to):
             data_to.objects = objects_to_link
 
         root_obj = None
@@ -573,8 +573,12 @@ def timer_function():
     if not state.is_applying_remote_update:
         active = bpy.context.view_layer.objects.active if bpy.context.view_layer else None
         current_selected = None
-        if active and "meerkat_id" in active:
-            current_selected = active["meerkat_id"]
+        obj = active
+        while obj is not None:
+            if "meerkat_id" in obj:
+                current_selected = obj["meerkat_id"]
+                break
+            obj = obj.parent
 
         if current_selected != state.last_selected:
             state.last_selected = current_selected

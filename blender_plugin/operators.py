@@ -295,7 +295,7 @@ class MEERKAT_OT_place_asset(bpy.types.Operator):
 
         # Link all objects from the local .blend library
         try:
-            with bpy.data.libraries.load(library_path, link=True) as (data_from, data_to):
+            with bpy.data.libraries.load(library_path, link=False) as (data_from, data_to):
                 data_to.objects = objects_to_link
         except Exception as e:
             self.report({'ERROR'}, f"Failed to link asset: {e}")
