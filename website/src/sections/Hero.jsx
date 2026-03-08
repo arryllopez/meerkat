@@ -2,7 +2,7 @@ import { motion } from 'framer-motion'
 
 export default function Hero() {
   return (
-    <section className="relative min-h-screen flex flex-col items-center justify-center px-6 overflow-hidden">
+    <section className="relative h-screen flex flex-col items-center justify-start pt-[8vh] px-6 overflow-hidden">
       {/* Background glow */}
       <div
         className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[400px] md:w-[900px] md:h-[600px] rounded-full pointer-events-none"
@@ -16,8 +16,8 @@ export default function Hero() {
       <div
         className="absolute inset-0 pointer-events-none opacity-[0.03]"
         style={{
-          backgroundImage: `linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)`,
+          backgroundImage: `linear-gradient(rgba(0,0,0,0.06) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(0,0,0,0.06) 1px, transparent 1px)`,
           backgroundSize: '60px 60px',
         }}
       />
@@ -26,57 +26,60 @@ export default function Hero() {
         initial={{ opacity: 0, y: 30 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.9, ease: [0.22, 1, 0.36, 1] }}
-        className="relative z-10 text-center"
+        className="relative z-10 text-center flex flex-col items-center flex-1 min-h-0 w-full pb-[10vh]"
       >
         <h1
-          className="font-display font-bold tracking-tight leading-[0.9] mb-6"
+          className="font-display font-bold tracking-tight leading-[0.9] mb-3 text-black"
           style={{ fontSize: 'clamp(4rem, 12vw, 9rem)', letterSpacing: '-0.04em' }}
         >
           Meerkat
         </h1>
 
-        <motion.p
+        <motion.h2
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ delay: 0.3, duration: 0.8 }}
-          className="text-text-muted text-base md:text-lg max-w-md mx-auto mb-10 font-body"
+          transition={{ delay: 0.2, duration: 0.8 }}
+          className="font-display font-normal text-black mb-10"
+          style={{ fontSize: 'clamp(1.1rem, 2.5vw, 1.5rem)' }}
         >
-          Real-time collaborative scene layout for Blender.
-          Multiple directors, one stage.
-        </motion.p>
+          Real-Time Collaborative Scene Layout for Blender
+        </motion.h2>
 
         <motion.div
-          initial={{ opacity: 0, y: 10 }}
+          initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.5, duration: 0.6 }}
-          className="flex gap-4 justify-center"
+          transition={{ delay: 0.4, duration: 0.8 }}
+          className="w-[90vw] max-w-[1200px] mx-auto flex-1 min-h-0"
         >
-          <a
-            href="https://github.com/arryllopez/meerkat"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="px-6 py-2.5 rounded-lg border border-accent/40 text-accent text-sm font-medium
-              hover:bg-accent/10 hover:border-accent transition-all duration-300
-              hover:shadow-[0_0_20px_rgba(212,162,83,0.15)]"
-          >
-            View on GitHub
-          </a>
-        </motion.div>
-      </motion.div>
-
-      {/* Scroll indicator */}
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 1.2, duration: 0.8 }}
-        className="absolute bottom-10 left-1/2 -translate-x-1/2"
-      >
-        <motion.div
-          animate={{ y: [0, 8, 0] }}
-          transition={{ repeat: Infinity, duration: 2, ease: 'easeInOut' }}
-          className="w-5 h-8 rounded-full border border-surface-border flex items-start justify-center pt-1.5"
-        >
-          <div className="w-1 h-1.5 rounded-full bg-text-muted" />
+          <div className="relative h-full rounded-xl bg-surface border border-surface-border group cursor-pointer
+            hover:border-accent/30 transition-all duration-500 hover:shadow-[0_0_40px_rgba(184,137,63,0.08)]">
+            <div className="absolute inset-0 rounded-xl overflow-hidden">
+              <div className="absolute inset-0 bg-gradient-to-b from-transparent via-transparent to-bg/50" />
+            </div>
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-4">
+              <div className="w-14 h-14 md:w-16 md:h-16 rounded-full border-2 border-surface-border
+                flex items-center justify-center
+                group-hover:border-accent/50 group-hover:scale-110 transition-all duration-300
+                group-hover:shadow-[0_0_30px_rgba(184,137,63,0.12)]">
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="currentColor"
+                  className="w-5 h-5 md:w-6 md:h-6 text-text-muted group-hover:text-accent transition-colors duration-300 ml-0.5"
+                >
+                  <path d="M8 5v14l11-7z" />
+                </svg>
+              </div>
+              <span className="font-display italic text-text-muted text-sm group-hover:text-text-primary transition-colors duration-300">
+                Demo Coming Soon
+              </span>
+            </div>
+            {/* Meerkat peeking from the right */}
+            <img
+              src="/hero-preview.png"
+              alt="Meerkat peeking"
+              className="absolute -top-14 -right-30 h-[45%] w-auto pointer-events-none select-none drop-shadow-lg z-10"
+            />
+          </div>
         </motion.div>
       </motion.div>
     </section>
