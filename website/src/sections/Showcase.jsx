@@ -3,7 +3,7 @@ import ShowcaseCard, { WEEKS } from '../components/ShowcaseCard'
 
 export default function Showcase() {
   return (
-    <section className="py-20 md:py-28 px-6">
+    <section id="showcase" className="py-20 md:py-28 px-6">
       <div className="max-w-4xl mx-auto">
         <SectionReveal>
           <span className="text-accent text-xs font-semibold tracking-[0.2em] uppercase font-body block mb-3">

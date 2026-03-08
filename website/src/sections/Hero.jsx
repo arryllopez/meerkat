@@ -1,6 +1,119 @@
+import { useState, useEffect, useRef, lazy, Suspense } from 'react'
 import { motion } from 'framer-motion'
 
+const CottageScene = lazy(() => import('../components/CottageScene'))
+const SuzanneScene = lazy(() => import('../components/SuzanneScene'))
+
+const BLENDER = 'Blender'
+const BLENDER_COLORS = ['#E87D0D', '#4A90D9', '#6C5CE7', '#2ECC71', '#D94A8C', '#E74C3C', '#F39C12']
+const LETTER_DURATION = 300
+
+// Cursor SVG component
+function CursorIcon({ color }) {
+  return (
+    <svg width="14" height="17" viewBox="0 0 14 17" fill="none">
+      <path
+        d="M1 1L1 12.5L3.8 9.5L7 15L9 14L5.8 8.5L10 8.5L1 1Z"
+        fill={color}
+        stroke="white"
+        strokeWidth="1"
+        strokeLinejoin="round"
+      />
+    </svg>
+  )
+}
+
+// Scattered shapes with cursors actively manipulating them
+const floatingShapes = [
+  {
+    // Top-right: sphere being scaled
+    id: 'sphere',
+    cursor: { name: 'Jamie', color: '#6C5CE7' },
+    position: { top: '15%', right: '8%' },
+    shape: (
+      <svg width="85" height="85" viewBox="0 0 50 50" fill="none">
+        <circle cx="25" cy="25" r="22" stroke="#c0c0c0" strokeWidth="1.5" fill="rgba(108,92,231,0.06)" />
+        <ellipse cx="25" cy="25" rx="22" ry="8" stroke="#c0c0c0" strokeWidth="0.8" />
+        <ellipse cx="25" cy="25" rx="8" ry="22" stroke="#c0c0c0" strokeWidth="0.8" />
+      </svg>
+    ),
+    animation: {
+      scale: [1, 1.3, 0.9, 1.15, 1],
+      transition: { duration: 6, repeat: Infinity, ease: 'easeInOut' },
+    },
+    cursorOffset: { x: 65, y: 55 },
+  },
+  {
+    // Bottom-left: Suzanne 3D model
+    id: 'suzanne',
+    is3D: true,
+    position: { bottom: '8%', left: '5%' },
+  },
+  {
+    // Bottom-right: cylinder being moved
+    id: 'cylinder',
+    cursor: { name: 'Sam', color: '#2ECC71' },
+    position: { bottom: '18%', right: '6%' },
+    shape: (
+      <svg width="75" height="95" viewBox="0 0 44 56" fill="none">
+        <ellipse cx="22" cy="10" rx="20" ry="8" stroke="#c0c0c0" strokeWidth="1.5" fill="rgba(46,204,113,0.06)" />
+        <line x1="2" y1="10" x2="2" y2="46" stroke="#c0c0c0" strokeWidth="1.5" />
+        <line x1="42" y1="10" x2="42" y2="46" stroke="#c0c0c0" strokeWidth="1.5" />
+        <ellipse cx="22" cy="46" rx="20" ry="8" stroke="#c0c0c0" strokeWidth="1.5" fill="rgba(46,204,113,0.06)" />
+      </svg>
+    ),
+    animation: {
+      x: [0, -20, 10, -15, 0],
+      y: [0, 15, -10, 20, 0],
+      transition: { duration: 9, repeat: Infinity, ease: 'easeInOut' },
+    },
+    cursorOffset: { x: 55, y: -8 },
+  },
+  {
+    // Mid-right: torus/donut being rotated
+    id: 'torus',
+    cursor: { name: 'Mika', color: '#D94A8C' },
+    position: { top: '48%', right: '5%' },
+    shape: (
+      <svg width="85" height="58" viewBox="0 0 50 34" fill="none">
+        <ellipse cx="25" cy="17" rx="23" ry="15" stroke="#c0c0c0" strokeWidth="1.5" fill="none" />
+        <ellipse cx="25" cy="17" rx="10" ry="6" stroke="#c0c0c0" strokeWidth="1.5" fill="rgba(217,74,140,0.06)" />
+      </svg>
+    ),
+    animation: {
+      rotate: [0, -12, 8, -15, 12, 0],
+      scaleX: [1, 1.1, 0.95, 1.05, 1],
+      transition: { duration: 10, repeat: Infinity, ease: 'easeInOut' },
+    },
+    cursorOffset: { x: 70, y: 35 },
+  },
+]
+
 export default function Hero() {
+  const [revealedLetters, setRevealedLetters] = useState(0)
+  const [activeCursor, setActiveCursor] = useState(-1)
+  const [blenderDone, setBlenderDone] = useState(false)
+  const [showSubtitle, setShowSubtitle] = useState(false)
+  const hasStarted = useRef(false)
+
+  useEffect(() => {
+    if (hasStarted.current) return
+    hasStarted.current = true
+
+    // Show subtitle immediately, then start typing "Blender" after a short delay
+    setTimeout(() => setShowSubtitle(true), 300)
+
+    BLENDER.split('').forEach((_, i) => {
+      const delay = 600 + i * LETTER_DURATION
+      setTimeout(() => setActiveCursor(i), delay)
+      setTimeout(() => setRevealedLetters((prev) => Math.max(prev, i + 1)), delay + 150)
+      setTimeout(() => setActiveCursor(-1), delay + LETTER_DURATION - 50)
+    })
+
+    const totalTime = 600 + BLENDER.length * LETTER_DURATION
+    setTimeout(() => setBlenderDone(true), totalTime)
+  }, [])
+
   return (
     <section className="relative h-screen flex flex-col items-center justify-start pt-[8vh] px-6 overflow-hidden">
       {/* Background glow */}
@@ -12,43 +125,122 @@ export default function Hero() {
         }}
       />
 
-      {/* Subtle grid lines */}
-      <div
-        className="absolute inset-0 pointer-events-none opacity-[0.03]"
-        style={{
-          backgroundImage: `linear-gradient(rgba(0,0,0,0.06) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(0,0,0,0.06) 1px, transparent 1px)`,
-          backgroundSize: '60px 60px',
-        }}
-      />
-
+      {/* 3D Cottage scene with cursors */}
       <motion.div
-        initial={{ opacity: 0, y: 30 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.9, ease: [0.22, 1, 0.36, 1] }}
-        className="relative z-10 text-center flex flex-col items-center flex-1 min-h-0 w-full pb-[10vh]"
+        initial={{ opacity: 0, scale: 0.8 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ duration: 1, delay: 0.5, ease: 'easeOut' }}
+        className="absolute hidden md:block"
+        style={{ top: '8%', left: '0%', width: '500px', height: '480px' }}
       >
+        <Suspense fallback={null}>
+          <CottageScene />
+        </Suspense>
+      </motion.div>
+
+      {/* Scattered floating shapes with cursors */}
+      {floatingShapes.map((item, i) =>
+        item.is3D ? (
+          <motion.div
+            key={item.id}
+            initial={{ opacity: 0, scale: 0.5 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: 0.5 + i * 0.15, duration: 0.6, ease: 'easeOut' }}
+            className="absolute pointer-events-none hidden md:block"
+            style={{ ...item.position, width: '420px', height: '380px' }}
+          >
+            <Suspense fallback={null}>
+              <SuzanneScene />
+            </Suspense>
+          </motion.div>
+        ) : (
+          <motion.div
+            key={item.id}
+            initial={{ opacity: 0, scale: 0.5 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: 0.5 + i * 0.15, duration: 0.6, ease: 'easeOut' }}
+            className="absolute pointer-events-none hidden md:block"
+            style={item.position}
+          >
+            {/* The shape itself, animated */}
+            <motion.div animate={item.animation}>
+              {item.shape}
+
+              {/* Cursor + label following the shape */}
+              <motion.div
+                className="absolute"
+                style={{ left: item.cursorOffset.x, top: item.cursorOffset.y }}
+                animate={{
+                  x: [0, 3, -2, 4, 0],
+                  y: [0, -3, 2, -1, 0],
+                }}
+                transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+              >
+                <CursorIcon color={item.cursor.color} />
+                <span
+                  className="block mt-0.5 text-white text-[9px] font-semibold font-heading rounded px-1 py-px whitespace-nowrap"
+                  style={{ background: item.cursor.color, marginLeft: 8 }}
+                >
+                  {item.cursor.name}
+                </span>
+              </motion.div>
+            </motion.div>
+          </motion.div>
+        )
+      )}
+
+      <div className="relative z-10 text-center flex flex-col items-center flex-1 min-h-0 w-full pb-[10vh]">
+        {/* Static title */}
         <h1
-          className="font-display font-bold tracking-tight leading-[0.9] mb-3 text-black"
+          className="font-heading font-semibold tracking-tight leading-[0.9] mb-3 text-black"
           style={{ fontSize: 'clamp(4rem, 12vw, 9rem)', letterSpacing: '-0.04em' }}
         >
           Meerkat
         </h1>
 
+        {/* Subtitle with cursor typing "Blender" */}
         <motion.h2
           initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.2, duration: 0.8 }}
-          className="font-display font-normal text-black mb-10"
+          animate={{ opacity: showSubtitle ? 1 : 0 }}
+          transition={{ duration: 0.8 }}
+          className="font-heading font-normal text-black mb-4"
           style={{ fontSize: 'clamp(1.1rem, 2.5vw, 1.5rem)' }}
         >
-          Real-Time Collaborative Scene Layout for Blender
+          Real-Time Collaborative Editing for{' '}
+          <span className="relative inline-block">
+            {BLENDER.split('').map((letter, i) => (
+              <span key={i} className="relative inline-block">
+                <span
+                  className="transition-opacity duration-150 font-semibold"
+                  style={{
+                    opacity: i < revealedLetters ? 1 : 0,
+                    color: BLENDER_COLORS[i % BLENDER_COLORS.length],
+                  }}
+                >
+                  {letter}
+                </span>
+
+                {!blenderDone && activeCursor === i && (
+                  <motion.span
+                    initial={{ opacity: 0, scaleY: 0 }}
+                    animate={{ opacity: 1, scaleY: 1 }}
+                    className="absolute -right-px top-[0.1em] bottom-[0.1em] w-0.5 rounded-full"
+                    style={{
+                      backgroundColor: BLENDER_COLORS[i % BLENDER_COLORS.length],
+                      animation: 'cursor-blink 0.6s ease-in-out infinite',
+                    }}
+                  />
+                )}
+              </span>
+            ))}
+          </span>
         </motion.h2>
 
+        {/* Video placeholder */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4, duration: 0.8 }}
+          animate={{ opacity: showSubtitle ? 1 : 0, y: showSubtitle ? 0 : 20 }}
+          transition={{ delay: 0.2, duration: 0.8 }}
           className="w-[90vw] max-w-[1200px] mx-auto flex-1 min-h-0"
         >
           <div className="relative h-full rounded-xl bg-surface border border-surface-border group cursor-pointer
@@ -69,19 +261,18 @@ export default function Hero() {
                   <path d="M8 5v14l11-7z" />
                 </svg>
               </div>
-              <span className="font-display italic text-text-muted text-sm group-hover:text-text-primary transition-colors duration-300">
+              <span className="font-heading italic text-text-muted text-sm group-hover:text-text-primary transition-colors duration-300">
                 Demo Coming Soon
               </span>
             </div>
-            {/* Meerkat peeking from the right */}
             <img
               src="/hero-preview.png"
               alt="Meerkat peeking"
-              className="absolute -top-14 -right-30 h-[45%] w-auto pointer-events-none select-none drop-shadow-lg z-10"
+              className="absolute -top-14 -right-32 h-[45%] w-auto pointer-events-none select-none drop-shadow-lg z-10"
             />
           </div>
         </motion.div>
-      </motion.div>
+      </div>
     </section>
   )
 }

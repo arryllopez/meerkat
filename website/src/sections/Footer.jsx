@@ -2,7 +2,7 @@ export default function Footer() {
   return (
     <footer className="border-t border-surface-border mt-10">
       <div className="max-w-4xl mx-auto px-6 py-12 md:py-16 flex flex-col md:flex-row items-center justify-between gap-6">
-        <div className="font-display text-lg font-bold text-text-primary tracking-tight">
+        <div className="font-heading text-lg font-semibold text-text-primary tracking-tight">
           Meerkat
         </div>
 

@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Caudex:ital,wght@0,400;0,700;1,400;1,700&family=Instrument+Sans:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600&family=Caudex:ital,wght@0,400;0,700;1,400;1,700&display=swap');
 @import "tailwindcss";
 
 @theme {
@@ -12,7 +12,8 @@
   --color-accent-dim: #a07832;
   --color-accent-glow: rgba(184, 137, 63, 0.12);
   --font-display: 'Caudex', 'Georgia', serif;
-  --font-body: 'Instrument Sans', system-ui, sans-serif;
+  --font-heading: 'Inter', system-ui, sans-serif;
+  --font-body: 'Inter', system-ui, sans-serif;
 }
 
 html {
@@ -47,6 +48,12 @@ body::after {
   opacity: 0.04;
   pointer-events: none;
   z-index: 9999;
+}
+
+/* Cursor blink for collaborative typing */
+@keyframes cursor-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
 }
 
 /* Hero glow pulse */
