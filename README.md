@@ -21,7 +21,7 @@ Real-time collaborative editing inside Blender — multiplayer scene editing, li
 </p>
 
 <p align="center">
-  <img width="1200" height="300" alt="Lawrence Arryl Lopez (4)" src="https://github.com/user-attachments/assets/666d8da2-ad8a-41bc-b5ed-7149cd0decb6" />
+  <img width="1200" height="300" alt="Lawrence Arryl Lopez (5)" src="https://github.com/user-attachments/assets/6319f74e-7c1b-4494-be42-ab19fb36dbe7" />
 </p>
 
 <h3 align="center">Real-time collaboration in Blender — coming soon.</h3>
