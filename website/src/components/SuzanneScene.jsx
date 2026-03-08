@@ -3,9 +3,17 @@ import { Canvas, useFrame } from '@react-three/fiber'
 import { useGLTF, Html } from '@react-three/drei'
 
 function Suzanne(props) {
+  const groupRef = useRef()
   const { nodes, materials } = useGLTF('/suzanne_skin_material_test.glb')
+
+  useFrame(({ clock }) => {
+    const t = clock.getElapsedTime()
+    groupRef.current.position.y = Math.sin(t * 0.8) * 0.06
+    groupRef.current.rotation.y = props.rotation?.[1] + Math.sin(t * 0.5) * 0.05
+  })
+
   return (
-    <group {...props} dispose={null}>
+    <group ref={groupRef} {...props} dispose={null}>
       <group position={[0, -0.011, -0.005]} rotation={[-2.049, 0, 0]} scale={0.319}>
         <mesh
           geometry={nodes.Suzanne_0.geometry}
