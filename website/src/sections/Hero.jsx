@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef, lazy, Suspense } from 'react'
 import { motion } from 'framer-motion'
 
-const CottageScene = lazy(() => import('../components/CottageScene'))
 const SuzanneScene = lazy(() => import('../components/SuzanneScene'))
 
 const BLENDER = 'Blender'
@@ -125,17 +124,53 @@ export default function Hero() {
         }}
       />
 
-      {/* 3D Cottage scene with cursors */}
+      {/* Ornn with cursors */}
       <motion.div
         initial={{ opacity: 0, scale: 0.8 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 1, delay: 0.5, ease: 'easeOut' }}
-        className="absolute hidden md:block"
-        style={{ top: '8%', left: '0%', width: '500px', height: '480px' }}
+        className="absolute hidden md:block pointer-events-none"
+        style={{ top: '8%', left: '0%', width: 'clamp(250px, 26vw, 400px)', height: 'clamp(250px, 26vw, 400px)' }}
       >
-        <Suspense fallback={null}>
-          <CottageScene />
-        </Suspense>
+        <motion.div
+          animate={{ y: [0, -8, 0] }}
+          transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+          className="relative w-full h-full flex items-center justify-center"
+        >
+          <img src="/Adobe Express - file.png" alt="Ornn" style={{ width: 'clamp(180px, 18vw, 280px)' }} className="h-auto drop-shadow-lg" />
+
+          {/* Alex cursor */}
+          <motion.div
+            className="absolute"
+            style={{ top: '25%', right: '10%' }}
+            animate={{ x: [0, 3, -2, 4, 0], y: [0, -3, 2, -1, 0] }}
+            transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
+          >
+            <CursorIcon color="#4A90D9" />
+            <span
+              className="block mt-0.5 text-white text-[9px] font-semibold font-heading rounded px-1 py-px whitespace-nowrap"
+              style={{ background: '#4A90D9', marginLeft: 8 }}
+            >
+              Alex
+            </span>
+          </motion.div>
+
+          {/* Jamie cursor */}
+          <motion.div
+            className="absolute"
+            style={{ bottom: '30%', left: '15%' }}
+            animate={{ x: [0, -3, 2, -4, 0], y: [0, 2, -3, 1, 0] }}
+            transition={{ duration: 3.5, repeat: Infinity, ease: 'easeInOut' }}
+          >
+            <CursorIcon color="#6C5CE7" />
+            <span
+              className="block mt-0.5 text-white text-[9px] font-semibold font-heading rounded px-1 py-px whitespace-nowrap"
+              style={{ background: '#6C5CE7', marginLeft: 8 }}
+            >
+              Jamie
+            </span>
+          </motion.div>
+        </motion.div>
       </motion.div>
 
       {/* Scattered floating shapes with cursors */}
@@ -147,7 +182,7 @@ export default function Hero() {
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: 0.5 + i * 0.15, duration: 0.6, ease: 'easeOut' }}
             className="absolute pointer-events-none hidden md:block"
-            style={{ ...item.position, width: '420px', height: '380px' }}
+            style={{ ...item.position, width: 'clamp(260px, 28vw, 420px)', height: 'clamp(240px, 25vw, 380px)' }}
           >
             <Suspense fallback={null}>
               <SuzanneScene />
