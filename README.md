@@ -18,7 +18,8 @@
 Real-time collaborative editing inside Blender — multiplayer scene editing, live transforms, and shared sessions.
 
 <p align="center">
-  <img width="1200" height="300" alt="Meerkat Banner" src="https://github.com/user-attachments/assets/6319f74e-7c1b-4494-be42-ab19fb36dbe7" />
+  <img width="1200" height="300" alt="Lawrence Arryl Lopez (1)" src="https://github.com/user-attachments/assets/1d96cfae-ddbe-475f-aaa3-78047050e43e" />
+
 </p>
 
 <h3 align="center">Alpha dropping soon — <a href="https://github.com/arryllopez/meerkat/discussions">join the discussion</a></h3>
