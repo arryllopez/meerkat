@@ -1,9 +1,10 @@
 # Meerkat
 
 [![License: GPLv3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
-[![Status](https://img.shields.io/badge/status-in%20development-orange)](https://github.com/arryllopez/meerkat)
+[![Status](https://img.shields.io/badge/status-alpha%20soon-orange)](https://github.com/arryllopez/meerkat)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](https://github.com/arryllopez/meerkat/pulls)
 [![GitHub Stars](https://img.shields.io/github/stars/arryllopez/meerkat?style=social)](https://github.com/arryllopez/meerkat)
+[![Discussions](https://img.shields.io/badge/GitHub-Discussions-purple?logo=github)](https://github.com/arryllopez/meerkat/discussions)
 [![Rust](https://img.shields.io/badge/Rust-1.75+-orange?logo=rust)](https://www.rust-lang.org/)
 [![Python](https://img.shields.io/badge/Python-3.10+-blue?logo=python&logoColor=white)](https://www.python.org/)
 [![Blender](https://img.shields.io/badge/Blender-4.0+-orange?logo=blender&logoColor=white)](https://www.blender.org/)
@@ -17,14 +18,10 @@
 Real-time collaborative editing inside Blender — multiplayer scene editing, live transforms, and shared sessions.
 
 <p align="center">
-  <video src="https://github.com/user-attachments/assets/011e1c0d-1a4e-428d-94ed-4320cd8c55af" controls width="720"></video>
+  <img width="1200" height="300" alt="Meerkat Banner" src="https://github.com/user-attachments/assets/6319f74e-7c1b-4494-be42-ab19fb36dbe7" />
 </p>
 
-<p align="center">
-  <img width="1200" height="300" alt="Lawrence Arryl Lopez (5)" src="https://github.com/user-attachments/assets/6319f74e-7c1b-4494-be42-ab19fb36dbe7" />
-</p>
-
-<h3 align="center">Real-time collaboration in Blender — coming soon.</h3>
+<h3 align="center">Alpha dropping soon — <a href="https://github.com/arryllopez/meerkat/discussions">join the discussion</a></h3>
 
 ---
 
@@ -43,6 +40,14 @@ Meerkat fixes that.
 | Works inside Blender | ✅ | ❌ | ❌ |
 | Cloud relay (optional) | ✅ | ❌ | ✅ |
 | Peer-to-peer option | ✅ | ❌ | ❌ |
+
+---
+
+## Demo
+
+<p align="center">
+  <img src="MovingShapes-ezgif.com-video-to-gif-converter.gif" alt="Meerkat Demo — real-time object sync between two Blender instances">
+</p>
 
 ---
 
@@ -89,7 +94,7 @@ Meerkat is split into two components:
 
 ## Installation
 
-> **Alpha not yet released.** Instructions will be finalized for the first release. Watch the repo to be notified.
+> **Alpha not yet released.** Instructions will be finalized for the first release. Watch the repo or [join the discussion](https://github.com/arryllopez/meerkat/discussions) to be notified.
 
 **From source (backend):**
 ```bash
@@ -165,6 +170,20 @@ Contributions are welcome — especially around networking, Blender Python API e
 2. Create your feature branch (`git checkout -b feat/your-feature`)
 3. Commit your changes
 4. Open a Pull Request
+
+Have a question or idea? [Start a discussion](https://github.com/arryllopez/meerkat/discussions).
+
+---
+
+## Featured In
+
+> Know a place Meerkat should be listed? [Open an issue](https://github.com/arryllopez/meerkat/issues) or submit a PR.
+
+---
+
+## Star History
+
+[![Star History Chart](https://api.star-history.com/svg?repos=arryllopez/meerkat&type=Date)](https://star-history.com/#arryllopez/meerkat&Date)
 
 ---
 
