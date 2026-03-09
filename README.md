@@ -18,7 +18,7 @@
 Real-time collaborative editing inside Blender — multiplayer scene editing, live transforms, and shared sessions.
 
 <p align="center">
-  <img src="MovingShapes-ezgif.com-video-to-gif-converter.gif" alt="Meerkat Demo — real-time object sync between two Blender instances">
+  <img src="cursor_tracking-ezgif.com-video-to-gif-converter.gif" alt="Meerkat Demo — real-time object sync between two Blender instances">
 </p>
 
 <p align="center">
