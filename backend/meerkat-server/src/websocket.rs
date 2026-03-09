@@ -15,7 +15,7 @@ use crate::{
     messages::{
         ClientEvent, FullStateSyncPayload, NameUpdatedPayload, ObjectCreatedPayload,
         ObjectDeletedPayload, PropertiesUpdatedPayload, ServerEvent, TransformUpdatedPayload,
-        UserJoinedPayload, UserLeftPayload, UserSelectedPayload, parse_client_message,
+        UpdatedCursor, UserJoinedPayload, UserLeftPayload, UserSelectedPayload, parse_client_message,
     },
     types::{AppState, LogEntry, SceneObject, Session, User, COLOR_PALETTE},
 };
@@ -510,6 +510,21 @@ async fn dispatch(
                     "sent FullStateSync to requesting client"
                 );
             }
+        }
+
+        // Update Cursor
+        ClientEvent::UpdateCursor(payload) => {
+            let Some((sid, uid)) = state.connection_meta.get(&connection_id).map(|r| r.value().clone()) else {
+                return;
+            };
+
+            let json = serde_json::to_string(&ServerEvent::CursorUpdated(UpdatedCursor {
+                position: payload.position,
+                user_id: uid,
+            }))
+            .expect("CursorUpdated serialization failed");
+
+            broadcast(state, &sid, &json, Some(connection_id));
         }
     }
 }

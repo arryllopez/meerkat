@@ -79,6 +79,9 @@ class MEERKAT_OT_connect(bpy.types.Operator):
             }
         })
 
+        # Start the cursor tracker modal
+        bpy.ops.meerkat.cursor_tracker('INVOKE_DEFAULT')
+
         self.report({'INFO'}, f"Connected to {room_name}")
         return {'FINISHED'}
 
@@ -319,6 +322,41 @@ class MEERKAT_OT_place_asset(bpy.types.Operator):
             asset_library=os.path.basename(library_path),
         )
         return {'FINISHED'}
+
+
+# ── Cursor tracker modal operator ───────────────────────────────────────────
+
+class MEERKAT_OT_cursor_tracker(bpy.types.Operator):
+    bl_idname = "meerkat.cursor_tracker"
+    bl_label = "Meerkat Cursor Tracker"
+    bl_options = {'INTERNAL'}
+
+    def modal(self, context, event):
+        state = PluginState()
+        if not state.connected:
+            return {'CANCELLED'}
+
+        if event.type == 'MOUSEMOVE':
+            # Find the 3D viewport region under the mouse
+            for area in context.screen.areas:
+                if area.type != 'VIEW_3D':
+                    continue
+                for region in area.regions:
+                    if region.type != 'WINDOW':
+                        continue
+                    # Check if mouse is inside this region
+                    mx = event.mouse_x - region.x
+                    my = event.mouse_y - region.y
+                    if 0 <= mx <= region.width and 0 <= my <= region.height:
+                        rv3d = area.spaces[0].region_3d
+                        state._last_mouse = (region, rv3d, mx, my)
+                        break
+
+        return {'PASS_THROUGH'}
+
+    def invoke(self, context, event):
+        context.window_manager.modal_handler_add(self)
+        return {'RUNNING_MODAL'}
 
 
 # ── Save Scene operator ─────────────────────────────────────────────────────

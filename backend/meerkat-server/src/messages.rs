@@ -60,6 +60,16 @@ pub struct SelectObjectPayload {
     pub object_id: Option<Uuid>, // None means deselect
 }
 
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct CursorPayload { 
+    pub position : [f64 ;3]
+}
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct UpdatedCursor { 
+    pub position : [f64 ; 3],
+    pub user_id : Uuid,
+}
+
 // ── Client event enum ─────────────────────────────────────────────────────────
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -74,6 +84,7 @@ pub enum ClientEvent {
     UpdateName(UpdateNamePayload),
     SelectObject(SelectObjectPayload),
     RequestStateSync,
+    UpdateCursor(CursorPayload),
 }
 
 // ── Server → Client payloads ──────────────────────────────────────────────────
@@ -154,6 +165,7 @@ pub enum ServerEvent {
     UserJoined(UserJoinedPayload),
     UserLeft(UserLeftPayload),
     UserSelected(UserSelectedPayload),
+    CursorUpdated(UpdatedCursor),
     Error(ErrorPayload),
 }
 

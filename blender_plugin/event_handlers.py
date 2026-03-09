@@ -1,5 +1,6 @@
 # event_handlers.py — server event -> Blender action dispatch
 import bpy
+import time
 import queue
 from .state import PluginState
 from .utils import build_transform
@@ -463,6 +464,7 @@ def handle_user_left(payload):
     state = PluginState()
     user_id = payload.get("user_id", "")
     removed = state.users.pop(user_id, None)
+    state.cursor_positions.pop(user_id, None)
     _redraw_panels()
     if removed:
         print(f"[Meerkat] User left: {removed['display_name']}")
@@ -526,6 +528,18 @@ def handle_user_selected(payload):
     _redraw_panels()
 
 
+def handle_cursor_updated(payload):
+    state = PluginState()
+    user_id = payload.get("user_id", "")
+
+    if user_id == str(state.user_id):
+        return
+
+    position = payload.get("position", [0, 0, 0])
+    state.cursor_positions[user_id] = position
+    _redraw_panels()
+
+
 EVENT_HANDLERS = {
     "FullStateSync": handle_full_state_sync,
     "ObjectCreated": handle_object_created,
@@ -536,6 +550,7 @@ EVENT_HANDLERS = {
     "UserJoined": handle_user_joined,
     "UserLeft": handle_user_left,
     "UserSelected": handle_user_selected,
+    "CursorUpdated": handle_cursor_updated,
 }
 
 
@@ -592,3 +607,47 @@ def timer_function():
     return timer
 
 
+def timer_function_cursor():
+    """Send stored mouse position to server at ~15Hz."""
+    timer = 0.066
+    state = PluginState()
+
+    if not state.connected or not state.ws_client:
+        return timer
+    if state.is_applying_remote_update:
+        return timer
+
+    # _last_mouse is set by MEERKAT_OT_cursor_tracker modal operator
+    mouse_data = getattr(state, '_last_mouse', None)
+    if mouse_data is None:
+        return timer
+
+    now = time.monotonic()
+    if now - state.last_cursor_send < 0.066:
+        return timer
+
+    region, rv3d, mx, my = mouse_data
+
+    try:
+        from bpy_extras.view3d_utils import region_2d_to_origin_3d, region_2d_to_vector_3d
+        origin = region_2d_to_origin_3d(region, rv3d, (mx, my))
+        direction = region_2d_to_vector_3d(region, rv3d, (mx, my))
+
+        depsgraph = bpy.context.evaluated_depsgraph_get()
+        hit, location, *_ = bpy.context.scene.ray_cast(depsgraph, origin, direction)
+
+        if hit:
+            pos = [location.x, location.y, location.z]
+        else:
+            fallback = origin + direction * 10.0
+            pos = [fallback.x, fallback.y, fallback.z]
+
+        state.last_cursor_send = now
+        state.ws_client.send({
+            "event_type": "UpdateCursor",
+            "payload": {"position": pos}
+        })
+    except Exception as e:
+        print(f"[Meerkat] Cursor send error: {e}")
+
+    return timer

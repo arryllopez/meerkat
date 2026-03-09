@@ -32,8 +32,13 @@ class PluginState(metaclass=Singleton):
     property_cache: dict = field(default_factory=dict)         # meerkat_id -> last sent properties dict
     name_cache: dict = field(default_factory=dict)             # meerkat_id -> last sent obj.name
     last_selected: str | None = None                             # meerkat_id of last selected object (or None)
-    draw_handler: object | None = None                           # SpaceView3D draw handler reference
+    draw_handler: object | None = None                           # SpaceView3D POST_VIEW handler
+    cursor_draw_handler: object | None = None                    # SpaceView3D POST_PIXEL handler
     reconnecting: bool = False 
     reconnect_attempt :int = 0 
     intentional_disconnect : bool = False 
+    cursor_positions: dict = field(default_factory=dict)
+    last_cursor_send: float = 0.0
+    _last_mouse: object | None = None                        # (region, rv3d, mx, my) from modal
+    
     
