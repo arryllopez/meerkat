@@ -1,23 +1,34 @@
 use std::sync::Arc;
 use dashmap::DashMap;
 use axum::{routing::any, Router};
-use meerkat_server::{types::AppState, websocket::handler};
+use meerkat_server::{event_log, types::AppState, websocket::handler};
 
 #[tokio::main(flavor = "multi_thread", worker_threads = 10)]
 async fn main() {
-    // format all output 
     tracing_subscriber::fmt()
         .json()
         .init();
 
-    // Three arc maps created for 
-    // sessions : assign a session for each session id 
-    // connections : maps connection id to a sender 
-    // connection_meta : maps connection id to 
+    // Ensure ./data/ directory exists
+    event_log::ensure_data_dir();
+
+    // Replay any existing event logs to restore sessions from a previous run
+    let restored = event_log::replay_all_logs();
+    let sessions = Arc::new(DashMap::new());
+    let log_files = Arc::new(DashMap::new());
+
+    for (session_id, session) in restored {
+        // Re-open the log file handle for continued appending
+        let writer = event_log::open_log_file(&session_id);
+        log_files.insert(session_id.clone(), writer);
+        sessions.insert(session_id, session);
+    }
+
     let state = AppState {
-        sessions: Arc::new(DashMap::new()), 
+        sessions,
         connections: Arc::new(DashMap::new()),
         connection_meta: Arc::new(DashMap::new()),
+        log_files,
     };
 
     let app: Router = Router::new()

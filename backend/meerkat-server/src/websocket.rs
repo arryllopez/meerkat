@@ -12,6 +12,7 @@ use uuid::Uuid;
 use axum::extract::ws::Message;
 
 use crate::{
+    event_log::{append_entry, open_log_file},
     messages::{
         ClientEvent, FullStateSyncPayload, NameUpdatedPayload, ObjectCreatedPayload,
         ObjectDeletedPayload, PropertiesUpdatedPayload, ServerEvent, TransformUpdatedPayload,
@@ -27,6 +28,13 @@ fn now_ms() -> u64 {
         .duration_since(UNIX_EPOCH)
         .expect("system clock before unix epoch")
         .as_millis() as u64
+}
+
+/// Write a state-mutating event to the session's append-only log file.
+fn write_log(state: &AppState, session_id: &str, entry: &LogEntry) {
+    if let Some(writer) = state.log_files.get(session_id) {
+        append_entry(writer.value(), entry);
+    }
 }
 
 /// Sends `json` to every connection in `session_id`, excluding `exclude` if provided.
@@ -136,6 +144,10 @@ async fn dispatch(
                 .entry(payload.session_id.clone())
                 .or_insert_with(|| {
                     tracing::info!(session_id = %payload.session_id, "session created");
+                    // Open log file for the new session
+                    state.log_files
+                        .entry(payload.session_id.clone())
+                        .or_insert_with(|| open_log_file(&payload.session_id));
                     Session {
                         session_id: payload.session_id.clone(),
                         objects: DashMap::new(),
@@ -243,12 +255,14 @@ async fn dispatch(
                 last_updated_at: now,
             };
             session.objects.insert(object.object_id, object.clone());
-            session.event_log.push(LogEntry {
+            let log_entry = LogEntry {
                 timestamp: now,
                 event_type: "CreateObject".to_string(),
                 payload: serde_json::to_value(&payload).expect("LogEntry serialization failed"),
-            });
+            };
+            session.event_log.push(log_entry.clone());
             drop(session); // release DashMap shard lock before broadcasting
+            write_log(state, &sid, &log_entry);
 
             tracing::info!(
                 event_type = "CreateObject",
@@ -284,12 +298,14 @@ async fn dispatch(
             };
 
             session.objects.remove(&payload.object_id);
-            session.event_log.push(LogEntry {
+            let log_entry = LogEntry {
                 timestamp: now,
                 event_type: "DeleteObject".to_string(),
                 payload: serde_json::to_value(&payload).expect("LogEntry serialization failed"),
-            });
+            };
+            session.event_log.push(log_entry.clone());
             drop(session);
+            write_log(state, &sid, &log_entry);
 
             tracing::info!(
                 event_type = "DeleteObject",
@@ -329,12 +345,14 @@ async fn dispatch(
                 obj.last_updated_by = uid;
                 obj.last_updated_at = now;
             }
-            session.event_log.push(LogEntry {
+            let log_entry = LogEntry {
                 timestamp: now,
                 event_type: "UpdateTransform".to_string(),
                 payload: serde_json::to_value(&payload).expect("LogEntry serialization failed"),
-            });
+            };
+            session.event_log.push(log_entry.clone());
             drop(session);
+            write_log(state, &sid, &log_entry);
 
             tracing::info!(
                 event_type = "UpdateTransform",
@@ -377,12 +395,14 @@ async fn dispatch(
                 obj.last_updated_by = uid;
                 obj.last_updated_at = now;
             }
-            session.event_log.push(LogEntry {
+            let log_entry = LogEntry {
                 timestamp: now,
                 event_type: "UpdateProperties".to_string(),
                 payload: serde_json::to_value(&payload).expect("LogEntry serialization failed"),
-            });
+            };
+            session.event_log.push(log_entry.clone());
             drop(session);
+            write_log(state, &sid, &log_entry);
 
             tracing::info!(
                 event_type = "UpdateProperties",
@@ -425,12 +445,14 @@ async fn dispatch(
                 obj.last_updated_by = uid;
                 obj.last_updated_at = now;
             }
-            session.event_log.push(LogEntry {
+            let log_entry = LogEntry {
                 timestamp: now,
                 event_type: "UpdateName".to_string(),
                 payload: serde_json::to_value(&payload).expect("LogEntry serialization failed"),
-            });
+            };
+            session.event_log.push(log_entry.clone());
             drop(session);
+            write_log(state, &sid, &log_entry);
 
             tracing::info!(
                 event_type = "UpdateName",

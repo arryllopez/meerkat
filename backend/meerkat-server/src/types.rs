@@ -1,6 +1,8 @@
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use std::sync::Arc;
+use std::fs::File;
+use std::io::BufWriter;
+use std::sync::{Arc, Mutex};
 use dashmap::DashMap;
 use tokio::sync::mpsc;
 
@@ -25,6 +27,8 @@ pub struct AppState {
     pub connections: Arc<DashMap<Uuid, mpsc::Sender<String>>>,
     /// Maps connection_id → (session_id, user_id) for session-scoped broadcast routing.
     pub connection_meta: Arc<DashMap<Uuid, (String, Uuid)>>,
+    /// Maps session_id → append-only log file writer for crash recovery.
+    pub log_files: Arc<DashMap<String, Mutex<BufWriter<File>>>>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
