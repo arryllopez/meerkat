@@ -16,10 +16,31 @@ pub async fn handle(state: &AppState, connection_id: Uuid, payload: SelectObject
         return;
     };
 
-    if let Some(session) = state.sessions.get(&sid) {
-        if let Some(mut user) = session.users.get_mut(&uid) {
+    let updated = if let Some(session) = state.sessions.get(&sid) {
+        let mut users = match session.users.write() {
+            Ok(guard) => guard,
+            Err(poisoned) => {
+                tracing::warn!("Session users lock poisoned, recovering");
+                poisoned.into_inner()
+            }
+        };
+        if let Some(user) = users.get_mut(&uid) {
             user.selected_object = payload.object_id;
+            true
+        } else {
+            false
         }
+    } else {
+        false
+    };
+
+    if !updated {
+        tracing::warn!(
+            session_id = %sid,
+            user_id = %uid,
+            "failed to update selection: session or user not found"
+        );
+        return;
     }
 
     tracing::info!(

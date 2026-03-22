@@ -17,7 +17,7 @@ pub async fn handle(socket: &mut WebSocket, state: &AppState, connection_id: Uui
 
     if let Some(session) = state.sessions.get(&sid) {
         let sync_json = serde_json::to_string(&ServerEvent::FullStateSync(FullStateSyncPayload {
-            session: session.clone(),
+            session: session.session_snapshot(),
         }))
         .expect("FullStateSync serialization failed");
         socket.send(Message::Text(sync_json.into())).await.ok();

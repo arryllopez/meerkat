@@ -1,3 +1,4 @@
+use std::sync::Arc;
 use uuid::Uuid;
 
 use crate::{
@@ -16,8 +17,9 @@ pub async fn handle(state: &AppState, connection_id: Uuid, payload: CreateObject
         return;
     };
     let now = now_ms();
-    let Some(mut session) = state.sessions.get_mut(&sid) else {
-        return;
+    let session = match state.sessions.get(&sid) {
+        Some(s) => Arc::clone(s.value()),
+        None => return,
     };
 
     let object = SceneObject {
@@ -32,14 +34,33 @@ pub async fn handle(state: &AppState, connection_id: Uuid, payload: CreateObject
         last_updated_by: uid,
         last_updated_at: now,
     };
-    session.objects.insert(object.object_id, object.clone());
+
+    {
+        let mut objects = match session.objects.write() {
+            Ok(guard) => guard,
+            Err(poisoned) => {
+                tracing::warn!("Session objects lock poisoned, recovering");
+                poisoned.into_inner()
+            }
+        };
+        objects.insert(object.object_id, object.clone());
+    }
+
     let log_entry = LogEntry {
         timestamp: now,
         event_type: "CreateObject".to_string(),
         payload: serde_json::to_value(&payload).expect("LogEntry serialization failed"),
     };
-    session.event_log.push(log_entry.clone());
-    drop(session);
+    {
+        let mut event_log = match session.event_log.write() {
+            Ok(guard) => guard,
+            Err(poisoned) => {
+                tracing::warn!("Session event_log lock poisoned, recovering");
+                poisoned.into_inner()
+            }
+        };
+        event_log.push(log_entry.clone());
+    }
     write_log(state, &sid, &log_entry);
 
     tracing::info!(

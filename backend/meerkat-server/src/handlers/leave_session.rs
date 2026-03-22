@@ -13,7 +13,14 @@ pub async fn handle(state: &AppState, connection_id: Uuid) {
     };
 
     if let Some(session) = state.sessions.get(&sid) {
-        session.users.remove(&uid);
+        let mut users = match session.users.write(){ 
+            Ok(guard) => guard, 
+            Err(poisoned) => { 
+                tracing::warn!("Session users lock poisoned, recovering with potentially inconsistent data."); 
+                poisoned.into_inner()
+            }
+        };
+        users.remove(&uid);
     }
 
     tracing::info!(

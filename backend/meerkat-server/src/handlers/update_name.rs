@@ -1,3 +1,4 @@
+use std::sync::Arc;
 use uuid::Uuid;
 
 use crate::{
@@ -16,22 +17,48 @@ pub async fn handle(state: &AppState, connection_id: Uuid, payload: UpdateNamePa
         return;
     };
     let now = now_ms();
-    let Some(mut session) = state.sessions.get_mut(&sid) else {
-        return;
+    let session = match state.sessions.get(&sid) {
+        Some(s) => Arc::clone(s.value()),
+        None => return,
     };
 
-    if let Some(mut obj) = session.objects.get_mut(&payload.object_id) {
-        obj.name = payload.name.clone();
-        obj.last_updated_by = uid;
-        obj.last_updated_at = now;
+    {
+        let mut objects = match session.objects.write() {
+            Ok(guard) => guard,
+            Err(poisoned) => {
+                tracing::warn!("Session objects lock poisoned, recovering");
+                poisoned.into_inner()
+            }
+        };
+        if let Some(obj) = objects.get_mut(&payload.object_id) {
+            obj.name = payload.name.clone();
+            obj.last_updated_by = uid;
+            obj.last_updated_at = now;
+        } else {
+            tracing::debug!(
+                object_id = %payload.object_id,
+                session_id = %sid,
+                "object not found for name update"
+            );
+            return;
+        }
     }
+
     let log_entry = LogEntry {
         timestamp: now,
         event_type: "UpdateName".to_string(),
         payload: serde_json::to_value(&payload).expect("LogEntry serialization failed"),
     };
-    session.event_log.push(log_entry.clone());
-    drop(session);
+    {
+        let mut event_log = match session.event_log.write() {
+            Ok(guard) => guard,
+            Err(poisoned) => {
+                tracing::warn!("Session event_log lock poisoned, recovering");
+                poisoned.into_inner()
+            }
+        };
+        event_log.push(log_entry.clone());
+    }
     write_log(state, &sid, &log_entry);
 
     tracing::info!(

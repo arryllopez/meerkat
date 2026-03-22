@@ -4,7 +4,6 @@ use std::io::{BufRead, BufReader, BufWriter, Write};
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 
-use dashmap::DashMap;
 use uuid::Uuid;
 
 use crate::messages::{
@@ -94,10 +93,10 @@ fn replay_log(path: &PathBuf, session_id: &str) -> Result<Session, String> {
     let file = File::open(path).map_err(|e| format!("open: {}", e))?;
     let reader = BufReader::new(file);
 
-    let session = Session {
+    let mut session = Session {
         session_id: session_id.to_string(),
-        objects: DashMap::new(),
-        users: DashMap::new(),
+        objects: HashMap::new(),
+        users: HashMap::new(),
         event_log: Vec::new(),
     };
 
@@ -132,14 +131,14 @@ fn replay_log(path: &PathBuf, session_id: &str) -> Result<Session, String> {
             }
         };
 
-        replay_entry(&session, &entry);
+        replay_entry(&mut session, &entry);
     }
 
     Ok(session)
 }
 
 /// Apply a single log entry to a session (no networking, no broadcast).
-fn replay_entry(session: &Session, entry: &LogEntry) {
+fn replay_entry(session: &mut Session, entry: &LogEntry) {
     match entry.event_type.as_str() {
         "CreateObject" => {
             let payload: CreateObjectPayload = match serde_json::from_value(entry.payload.clone()) {
@@ -184,7 +183,7 @@ fn replay_entry(session: &Session, entry: &LogEntry) {
                         return;
                     }
                 };
-            if let Some(mut obj) = session.objects.get_mut(&payload.object_id) {
+            if let Some(obj) = session.objects.get_mut(&payload.object_id) {
                 obj.transform = payload.transform;
                 obj.last_updated_at = entry.timestamp;
             }
@@ -199,7 +198,7 @@ fn replay_entry(session: &Session, entry: &LogEntry) {
                         return;
                     }
                 };
-            if let Some(mut obj) = session.objects.get_mut(&payload.object_id) {
+            if let Some(obj) = session.objects.get_mut(&payload.object_id) {
                 obj.properties = Some(payload.properties);
                 obj.last_updated_at = entry.timestamp;
             }
@@ -213,7 +212,7 @@ fn replay_entry(session: &Session, entry: &LogEntry) {
                     return;
                 }
             };
-            if let Some(mut obj) = session.objects.get_mut(&payload.object_id) {
+            if let Some(obj) = session.objects.get_mut(&payload.object_id) {
                 obj.name = payload.name;
                 obj.last_updated_at = entry.timestamp;
             }

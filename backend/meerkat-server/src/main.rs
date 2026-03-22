@@ -1,7 +1,7 @@
-use std::sync::Arc;
+use std::sync::{Arc, RwLock};
 use dashmap::DashMap;
 use axum::{routing::any, Router};
-use meerkat_server::{event_log, types::AppState, websocket::handler};
+use meerkat_server::{event_log, types::{AppState, SessionHandle}, websocket::handler};
 
 #[tokio::main(flavor = "multi_thread", worker_threads = 10)]
 async fn main() {
@@ -21,7 +21,13 @@ async fn main() {
         // Re-open the log file handle for continued appending
         let writer = event_log::open_log_file(&session_id);
         log_files.insert(session_id.clone(), writer);
-        sessions.insert(session_id, session);
+        // Convert the replayed Session into a SessionHandle wrapped in Arc
+        sessions.insert(session_id, Arc::new(SessionHandle {
+            objects: RwLock::new(session.objects),
+            users: RwLock::new(session.users),
+            event_log: RwLock::new(session.event_log),
+            session_id: session.session_id,
+        }));
     }
 
     let state = AppState {

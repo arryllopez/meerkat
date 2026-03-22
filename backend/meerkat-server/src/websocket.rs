@@ -66,7 +66,14 @@ pub async fn handle_connection(mut socket: WebSocket, state: AppState) {
     // If the client was in a session (did not call LeaveSession cleanly), clean up now.
     if let Some((_, (sid, uid))) = state.connection_meta.remove(&connection_id) {
         if let Some(session) = state.sessions.get(&sid) {
-            session.users.remove(&uid);
+            let mut users = match session.users.write() {
+                Ok(guard) => guard,
+                Err(poisoned) => {
+                    tracing::warn!("Session users lock poisoned during disconnect cleanup, recovering");
+                    poisoned.into_inner()
+                }
+            };
+            users.remove(&uid);
         }
 
         let left_json = serde_json::to_string(&ServerEvent::UserLeft(UserLeftPayload {

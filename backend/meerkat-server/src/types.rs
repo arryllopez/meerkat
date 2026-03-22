@@ -3,6 +3,8 @@ use uuid::Uuid;
 use std::fs::File;
 use std::io::BufWriter;
 use std::sync::{Arc, Mutex};
+use std::collections::HashMap;
+use std::sync::RwLock;
 use dashmap::DashMap;
 use tokio::sync::mpsc;
 
@@ -23,12 +25,57 @@ pub const COLOR_PALETTE: [[u8; 3]; 10] = [
 
 #[derive(Clone)]
 pub struct AppState {
-    pub sessions: Arc<DashMap<String, Session>>,
+    pub sessions: Arc<DashMap<String, Arc<SessionHandle>>>,
     pub connections: Arc<DashMap<Uuid, mpsc::Sender<String>>>,
     /// Maps connection_id → (session_id, user_id) for session-scoped broadcast routing.
     pub connection_meta: Arc<DashMap<Uuid, (String, Uuid)>>,
     /// Maps session_id → append-only log file writer for crash recovery.
     pub log_files: Arc<DashMap<String, Mutex<BufWriter<File>>>>,
+}
+
+// Session related logic is simplified by using a separate struct that contains RwLocks for interior mutability, 
+// which the AppState holds Arc references to for shared ownership across connections.
+pub struct SessionHandle{ 
+    pub objects: RwLock<HashMap<Uuid, SceneObject>>,
+    pub users: RwLock<HashMap<Uuid, User>>,
+    pub event_log: RwLock<Vec<LogEntry>>,
+    pub session_id: String,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct Session {
+    pub session_id: String,
+    pub objects: HashMap<Uuid, SceneObject>,
+    pub users: HashMap<Uuid, User>,
+    pub event_log: Vec<LogEntry>,
+}
+
+// Helper function to handle poisoned locks by logging a warning and recovering with a new lock containing default data. This prevents the entire session from becoming inaccessible due to one poisoned lock, at the cost of potentially losing some data.
+fn recover_read<T: Clone>(lock: &std::sync::RwLock<T>, name: &str) -> T {
+    match lock.read() {
+        Ok(guard) => guard.clone(),
+        Err(poisoned) => {
+            tracing::warn!(lock = name, "RwLock poisoned, recovering anyway");
+            poisoned.into_inner().clone()
+        }
+    }
+}
+
+// Build a session by acquiring read locks on the SessionHandle's internal state and cloning the data into a new Session struct.
+impl SessionHandle{
+    pub fn session_snapshot(&self) -> Session {
+        // If any of the locks are poisoned, we log a warning and recover by creating a new lock with empty data. This prevents the entire session from becoming inaccessible due to one poisoned lock, at the cost of potentially losing some data. 
+        let objects = recover_read(&self.objects, "objects");
+        let users = recover_read(&self.users, "users");
+        let event_log = recover_read(&self.event_log, "event_log");
+        let session_id = self.session_id.clone();
+        Session {
+            session_id,
+            objects,   
+            users,
+            event_log,
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -186,10 +233,4 @@ pub struct LogEntry {
     pub payload: serde_json::Value,
 }
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
-pub struct Session {
-    pub session_id: String,
-    pub objects: DashMap<Uuid, SceneObject>,
-    pub users: DashMap<Uuid, User>,
-    pub event_log: Vec<LogEntry>,
-}
+
