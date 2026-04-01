@@ -60,6 +60,20 @@ Meerkat fixes that.
 
 ---
 
+
+## Roadmap
+
+- [x] **Phase 1 (Weeks 1-2): Rust server foundation** - WebSocket server, session state, event handlers, and broadcast infrastructure.
+- [x] **Phase 2 (Weeks 2-3): Blender plugin skeleton** - addon structure, connect/disconnect flow, and initial full state sync.
+- [x] **Phase 3 (Weeks 3-4): Object lifecycle sync** - create/delete/sync for primitives, cameras, lights, and asset references.
+- [x] **Phase 4 (Weeks 4-5): Transform and property sync** - 30Hz throttled transforms, property updates, and name syncing.
+- [ ] **Phase 5 (Weeks 5-6): Presence and resilience** - users panel, selection highlights, robust full sync, reconnect handling, and scene export.
+- [ ] **Phase 6 (Weeks 6-7): Observability and durability** - file-backed event log, crash recovery, metrics endpoint, and benchmarking.
+- [ ] **Phase 7 (Weeks 7-8): Polish and deployment** - Docker, cloud deployment (WSS), rate limits, packaging, ADRs, and launch demo.
+
+Detailed implementation checklist: `CLAUDE.MD` (see **Implementation Phases**).
+
+---
 ## Architecture
 
 <img width="1507" height="674" alt="Meerkat Architecture Diagram" src="https://github.com/user-attachments/assets/7e35ad55-39a7-4034-b3b6-aa603eee2b75" />
@@ -125,21 +139,6 @@ Inside Blender, open the **Meerkat** side panel (`N` key → Meerkat tab):
 | Join Session | Connect to an existing session by ID |
 | Leave Session | Disconnect from the current session |
 | View Peers | See who's currently connected |
-
----
-
-## Roadmap
-
-- [ ] Core networking layer (WebSocket via `axum` + `tokio`)
-- [ ] Session host & join
-- [ ] Object transform sync
-- [ ] Conflict resolution model
-- [ ] UI panel inside Blender
-- [ ] Peer-to-peer option
-- [ ] Cloud relay (optional)
-- [ ] Camera & light sync
-- [ ] User presence with colored selection highlights
-- [ ] Session persistence
 
 ---
 

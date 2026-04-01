@@ -3,10 +3,10 @@ use uuid::Uuid;
 
 use crate::{
     messages::{NameUpdatedPayload, ServerEvent, UpdateNamePayload},
-    types::{AppState, LogEntry},
+    types::AppState,
 };
 
-use super::helpers::{broadcast, now_ms, write_log};
+use super::helpers::{broadcast, now_ms};
 
 pub async fn handle(state: &AppState, connection_id: Uuid, payload: UpdateNamePayload) {
     let Some((sid, uid)) = state
@@ -43,23 +43,6 @@ pub async fn handle(state: &AppState, connection_id: Uuid, payload: UpdateNamePa
             return;
         }
     }
-
-    let log_entry = LogEntry {
-        timestamp: now,
-        event_type: "UpdateName".to_string(),
-        payload: serde_json::to_value(&payload).expect("LogEntry serialization failed"),
-    };
-    {
-        let mut event_log = match session.event_log.write() {
-            Ok(guard) => guard,
-            Err(poisoned) => {
-                tracing::warn!("Session event_log lock poisoned, recovering");
-                poisoned.into_inner()
-            }
-        };
-        event_log.push(log_entry.clone());
-    }
-    write_log(state, &sid, &log_entry);
 
     tracing::info!(
         event_type = "UpdateName",

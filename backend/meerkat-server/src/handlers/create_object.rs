@@ -3,10 +3,10 @@ use uuid::Uuid;
 
 use crate::{
     messages::{CreateObjectPayload, ObjectCreatedPayload, ServerEvent},
-    types::{AppState, LogEntry, SceneObject},
+    types::{AppState, SceneObject},
 };
 
-use super::helpers::{broadcast, now_ms, write_log};
+use super::helpers::{broadcast, now_ms};
 
 pub async fn handle(state: &AppState, connection_id: Uuid, payload: CreateObjectPayload) {
     let Some((sid, uid)) = state
@@ -45,23 +45,6 @@ pub async fn handle(state: &AppState, connection_id: Uuid, payload: CreateObject
         };
         objects.insert(object.object_id, object.clone());
     }
-
-    let log_entry = LogEntry {
-        timestamp: now,
-        event_type: "CreateObject".to_string(),
-        payload: serde_json::to_value(&payload).expect("LogEntry serialization failed"),
-    };
-    {
-        let mut event_log = match session.event_log.write() {
-            Ok(guard) => guard,
-            Err(poisoned) => {
-                tracing::warn!("Session event_log lock poisoned, recovering");
-                poisoned.into_inner()
-            }
-        };
-        event_log.push(log_entry.clone());
-    }
-    write_log(state, &sid, &log_entry);
 
     tracing::info!(
         event_type = "CreateObject",

@@ -5,7 +5,6 @@ use std::collections::HashMap;
 use uuid::Uuid;
 
 use crate::{
-    event_log::open_log_file,
     messages::{FullStateSyncPayload, JoinSessionPayload, ServerEvent, UserJoinedPayload},
     types::{AppState, User, COLOR_PALETTE},
 };
@@ -29,15 +28,10 @@ pub async fn handle(
         .entry(payload.session_id.clone())
         .or_insert_with(|| {
             tracing::info!(session_id = %payload.session_id, "session created");
-            state
-                .log_files
-                .entry(payload.session_id.clone())
-                .or_insert_with(|| open_log_file(&payload.session_id));
             // Initialize a new SessionHandle with empty state and wrap it in an Arc for shared ownership.
             Arc::new(SessionHandle {
                 objects: RwLock::new(HashMap::new()),
                 users: RwLock::new(HashMap::new()),
-                event_log: RwLock::new(Vec::new()),
                 session_id: payload.session_id.clone(),
             })
         });

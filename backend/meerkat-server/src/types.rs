@@ -1,27 +1,23 @@
-use serde::{Deserialize, Serialize};
-use uuid::Uuid;
-use std::fs::File;
-use std::io::BufWriter;
-use std::sync::{Arc, Mutex};
-use std::collections::HashMap;
-use std::sync::RwLock;
 use dashmap::DashMap;
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
+use std::sync::Arc;
+use std::sync::RwLock;
 use tokio::sync::mpsc;
+use uuid::Uuid;
 
 pub const COLOR_PALETTE: [[u8; 3]; 10] = [
-    [231, 76, 60],    // red
-    [46, 204, 113],   // green
-    [52, 152, 219],   // blue
-    [241, 196, 15],   // yellow
-    [155, 89, 182],   // purple
-    [230, 126, 34],   // orange
-    [26, 188, 156],   // teal
-    [236, 112, 160],  // pink
-    [149, 165, 166],  // grey
-    [52, 73, 94],     // dark blue
+    [231, 76, 60],   // red
+    [46, 204, 113],  // green
+    [52, 152, 219],  // blue
+    [241, 196, 15],  // yellow
+    [155, 89, 182],  // purple
+    [230, 126, 34],  // orange
+    [26, 188, 156],  // teal
+    [236, 112, 160], // pink
+    [149, 165, 166], // grey
+    [52, 73, 94],    // dark blue
 ];
-
-
 
 #[derive(Clone)]
 pub struct AppState {
@@ -29,16 +25,13 @@ pub struct AppState {
     pub connections: Arc<DashMap<Uuid, mpsc::Sender<String>>>,
     /// Maps connection_id → (session_id, user_id) for session-scoped broadcast routing.
     pub connection_meta: Arc<DashMap<Uuid, (String, Uuid)>>,
-    /// Maps session_id → append-only log file writer for crash recovery.
-    pub log_files: Arc<DashMap<String, Mutex<BufWriter<File>>>>,
 }
 
-// Session related logic is simplified by using a separate struct that contains RwLocks for interior mutability, 
+// Session related logic is simplified by using a separate struct that contains RwLocks for interior mutability,
 // which the AppState holds Arc references to for shared ownership across connections.
-pub struct SessionHandle{ 
+pub struct SessionHandle {
     pub objects: RwLock<HashMap<Uuid, SceneObject>>,
     pub users: RwLock<HashMap<Uuid, User>>,
-    pub event_log: RwLock<Vec<LogEntry>>,
     pub session_id: String,
 }
 
@@ -47,7 +40,6 @@ pub struct Session {
     pub session_id: String,
     pub objects: HashMap<Uuid, SceneObject>,
     pub users: HashMap<Uuid, User>,
-    pub event_log: Vec<LogEntry>,
 }
 
 // Helper function to handle poisoned locks by logging a warning and recovering with a new lock containing default data. This prevents the entire session from becoming inaccessible due to one poisoned lock, at the cost of potentially losing some data.
@@ -62,18 +54,16 @@ fn recover_read<T: Clone>(lock: &std::sync::RwLock<T>, name: &str) -> T {
 }
 
 // Build a session by acquiring read locks on the SessionHandle's internal state and cloning the data into a new Session struct.
-impl SessionHandle{
+impl SessionHandle {
     pub fn session_snapshot(&self) -> Session {
-        // If any of the locks are poisoned, we log a warning and recover by creating a new lock with empty data. This prevents the entire session from becoming inaccessible due to one poisoned lock, at the cost of potentially losing some data. 
+        // If any of the locks are poisoned, we log a warning and recover by creating a new lock with empty data. This prevents the entire session from becoming inaccessible due to one poisoned lock, at the cost of potentially losing some data.
         let objects = recover_read(&self.objects, "objects");
         let users = recover_read(&self.users, "users");
-        let event_log = recover_read(&self.event_log, "event_log");
         let session_id = self.session_id.clone();
         Session {
             session_id,
-            objects,   
+            objects,
             users,
-            event_log,
         }
     }
 }
@@ -106,8 +96,9 @@ pub enum LensType {
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
-#[serde(rename_all = "UPPERCASE")] 
-pub enum SensorFit { // blender sends the camera properties in all caps
+#[serde(rename_all = "UPPERCASE")]
+pub enum SensorFit {
+    // blender sends the camera properties in all caps
     Auto,
     Horizontal,
     Vertical,
@@ -140,8 +131,8 @@ pub struct PointLightProperties {
     pub color: [f32; 3],
     pub temperature: f32, // Kelvin
     pub exposure: f32,
-    pub power: f32,       // watts
-    pub radius: f32,      // sphere radius for soft shadows
+    pub power: f32,  // watts
+    pub radius: f32, // sphere radius for soft shadows
     pub soft_falloff: bool,
     pub normalize: bool,
 }
@@ -176,7 +167,8 @@ pub struct AreaLightProperties {
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
-pub enum AreaLightShape { // different shapes that an area light can have since blender has fixed options for the shape of an area light
+pub enum AreaLightShape {
+    // different shapes that an area light can have since blender has fixed options for the shape of an area light
     Rectangle,
     Square,
     Disk,
@@ -215,7 +207,7 @@ pub struct SceneObject {
     pub properties: Option<ObjectProperties>, // None for primitives/asset refs
     pub created_by: Uuid,
     pub last_updated_by: Uuid,
-    pub last_updated_at: u64,          // unix timestamp ms
+    pub last_updated_at: u64, // unix timestamp ms
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -225,12 +217,3 @@ pub struct User {
     pub selected_object: Option<Uuid>,
     pub connected_at: u64, // timestamp
 }
-
-#[derive(Serialize, Deserialize, Clone, Debug)]
-pub struct LogEntry {
-    pub timestamp: u64,
-    pub event_type: String,
-    pub payload: serde_json::Value,
-}
-
-
