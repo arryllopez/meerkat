@@ -74,6 +74,64 @@ Meerkat fixes that.
 Detailed implementation checklist: `CLAUDE.MD` (see **Implementation Phases**).
 
 ---
+
+## Reliability and Scale Notes (Cloud Hosting)
+
+### Glaring backend issues to fix
+
+- [ ] **Silent message drops under load**: `mpsc::channel(32)` plus `try_send` currently drops messages when queues fill (`backend/meerkat-server/src/websocket.rs`, `backend/meerkat-server/src/handlers/helpers.rs`).
+- [ ] **Broadcast cost scales with total connections**: fanout iterates all `connection_meta`, not just peers in the session (`backend/meerkat-server/src/handlers/helpers.rs`).
+- [ ] **Re-join can leave stale membership**: a connection can overwrite `connection_meta` without full prior cleanup (`backend/meerkat-server/src/handlers/join_session.rs`).
+- [ ] **Object ID clobber risk**: `CreateObject` inserts directly; duplicate IDs can overwrite state (`backend/meerkat-server/src/handlers/create_object.rs`).
+- [ ] **Runtime `expect` in hot paths**: serialization `expect(...)` can crash server process during malformed data conditions (multiple handler files + `websocket.rs`).
+- [ ] **Sessions are never reclaimed**: empty sessions are retained forever, growing memory over time (`backend/meerkat-server/src/handlers/leave_session.rs`).
+
+### Blender plugin behavior to fix
+
+- [ ] **Data-loss risk on connect/sync**: plugin currently removes all scene objects during connect/full-state sync instead of only Meerkat-managed objects (`blender_plugin/operators.py`, `blender_plugin/event_handlers.py`).
+- [ ] **User identity mismatch edge case**: local `user_id` inferred by matching `display_name`; duplicate names can break echo suppression (`blender_plugin/event_handlers.py`).
+- [ ] **Reconnect errors are swallowed**: broad `except Exception: pass` hides failures and complicates debugging (`blender_plugin/websocket_client.py`).
+- [ ] **Blender version gate too strict**: addon currently declares Blender `5.0.0` minimum (`blender_plugin/__init__.py`).
+- [ ] **High-volume debug printing**: per-event payload printing adds overhead in active sessions (`blender_plugin/event_handlers.py`).
+
+### What Meerkat already covers in Blender
+
+- [x] Real-time multiplayer object lifecycle (create/delete/update) inside Blender.
+- [x] Live transform, object naming, and selected camera/light property synchronization.
+- [x] Presence features: connected users, selected-object highlights, and remote cursor overlays.
+- [x] Shared asset library placement with hierarchy support and missing-asset placeholders.
+- [x] Full state sync + reconnect foundation + save-scene workflow.
+
+### High-impact additions for the ecosystem
+
+- [ ] Collection, parenting, and outliner hierarchy sync.
+- [ ] Object locking / edit intent indicators to prevent collisions.
+- [ ] Material and shader-node parameter synchronization.
+- [ ] Animation sync (keyframes, markers, playback state).
+- [ ] In-scene review tools (comments, pins, annotations).
+- [ ] Snapshot/version timeline (checkpoint, rollback, compare).
+- [ ] In plugin chat feature 
+- [ ] Maybe gRPC communication in the backend 
+
+### Cost and concurrency strategy (self-hosted cloud)
+
+- [ ] Use per-session connection indexes (`session_id -> connection_ids`) so broadcast work is O(session size).
+- [ ] Add protocol-level backpressure/coalescing (especially transform/cursor updates) and guaranteed handling for critical events.
+- [ ] Enforce guardrails: message rate limits, payload size limits, max users/session, max active sessions, idle TTL.
+- [ ] Replace panic paths with recoverable errors and server-side error events.
+- [ ] Add production metrics: active sessions/connections, queue depth, drop counts, latency percentiles, msg/sec.
+
+
+
+### First improvement set (next branch scope)
+
+- [ ] Backend reliability hardening:
+  1) Backpressure policy with coalescing for high-rate updates.
+  2) No-drop handling for critical events (create/delete/join/leave).
+  3) Remove panic-prone `expect` paths from runtime message flow.
+
+---
+
 ## Architecture
 
 <img width="1507" height="674" alt="Meerkat Architecture Diagram" src="https://github.com/user-attachments/assets/7e35ad55-39a7-4034-b3b6-aa603eee2b75" />
