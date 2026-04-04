@@ -41,13 +41,19 @@ pub fn broadcast(state: &AppState, session_id: &str, json: &str, exclude: Option
                 Err(TrySendError::Full(_)) => {
                     dropped_full += 1;
                     let strikes = record_full_strike(state, conn_id, now_ms());
-                    tracing::warn!(
+                    tracing::debug!(
                         session_id = %session_id,
                         connection_id = %conn_id,
                         strikes,
                         "dropped outbound message: receiver channel is full"
                     );
                     if strikes >= BACKPRESSURE_EVICT_STRIKES {
+                        tracing::warn!(
+                            session_id = %session_id,
+                            connection_id = %conn_id,
+                            strikes,
+                            "evicting connection after repeated outbound drops: receiver channel remained full"
+                        );
                         to_evict.push(conn_id);
                     }
                 }
