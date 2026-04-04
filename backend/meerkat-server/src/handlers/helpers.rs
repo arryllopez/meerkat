@@ -41,25 +41,26 @@ pub fn broadcast(state: &AppState, session_id: &str, json: &str, exclude: Option
                 Err(TrySendError::Full(_)) => {
                     dropped_full += 1;
                     let strikes = record_full_strike(state, conn_id, now_ms());
-                    tracing::debug!(
-                        session_id = %session_id,
-                        connection_id = %conn_id,
-                        strikes,
-                        "dropped outbound message: receiver channel is full"
-                    );
                     if strikes >= BACKPRESSURE_EVICT_STRIKES {
                         tracing::warn!(
                             session_id = %session_id,
                             connection_id = %conn_id,
                             strikes,
-                            "evicting connection after repeated outbound drops: receiver channel remained full"
+                            "evicting connection: receiver channel repeatedly full"
                         );
                         to_evict.push(conn_id);
+                    } else {
+                        tracing::debug!(
+                            session_id = %session_id,
+                            connection_id = %conn_id,
+                            strikes,
+                            "dropped outbound message: receiver channel is full"
+                        );
                     }
                 }
                 Err(TrySendError::Closed(_)) => {
                     dropped_closed += 1;
-                    tracing::warn!(
+                    tracing::debug!(
                         session_id = %session_id,
                         connection_id = %conn_id,
                         "dropped outbound message: receiver channel is closed"
@@ -70,7 +71,7 @@ pub fn broadcast(state: &AppState, session_id: &str, json: &str, exclude: Option
         } else {
             missing_tx += 1;
             to_evict.push(conn_id);
-            tracing::warn!(
+            tracing::debug!(
                 session_id = %session_id,
                 connection_id = %conn_id,
                 "dropped outbound message: no sender channel found for connection"
@@ -98,7 +99,6 @@ pub fn broadcast(state: &AppState, session_id: &str, json: &str, exclude: Option
 pub fn evict_connection(state: &AppState, connection_ids: &[Uuid]) {
     for conn_id in connection_ids {
         state.connections.remove(conn_id);
-        state.connection_meta.remove(conn_id);
         state.connection_backpressure.remove(conn_id);
     }
 }

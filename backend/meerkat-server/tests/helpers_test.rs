@@ -108,8 +108,8 @@ fn broadcast_evicts_after_three_full_strikes() {
         "connection should be evicted on third strike"
     );
     assert!(
-        state.connection_meta.get(&connection_id).is_none(),
-        "connection metadata should be removed on eviction"
+        state.connection_meta.get(&connection_id).is_some(),
+        "connection metadata should remain until disconnect cleanup"
     );
     assert!(
         state.connection_backpressure.get(&connection_id).is_none(),

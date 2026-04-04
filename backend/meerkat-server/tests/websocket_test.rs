@@ -48,8 +48,8 @@ fn broadcast_evicts_connection_after_three_full_strikes() {
         "full queue connection should be evicted on third strike"
     );
     assert!(
-        state.connection_meta.get(&connection_id).is_none(),
-        "evicted connection metadata should be removed"
+        state.connection_meta.get(&connection_id).is_some(),
+        "evicted connection metadata should remain for disconnect cleanup"
     );
 
     let mut drained = 0;

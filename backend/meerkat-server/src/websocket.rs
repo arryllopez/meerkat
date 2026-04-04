@@ -1,7 +1,7 @@
 use axum::{
     extract::{
         State,
-        ws::{WebSocket, WebSocketUpgrade, CloseFrame, Message},
+        ws::{CloseCode, CloseFrame, Message, WebSocket, WebSocketUpgrade},
     },
     response::Response,
 };
@@ -17,6 +17,8 @@ use crate::{
     messages::{ClientEvent, ServerEvent, UserLeftPayload, parse_client_message},
     types::AppState,
 };
+
+const EVICTED_CLOSE_CODE: CloseCode = 4008;
 
 // ── HTTP upgrade entry-point ──────────────────────────────────────────────────
 
@@ -68,7 +70,7 @@ pub async fn handle_connection(mut socket: WebSocket, state: AppState) {
                     }
                     None => {
                         let _ = socket.send(Message::Close(Some(CloseFrame {
-                            code: 4008,
+                            code: EVICTED_CLOSE_CODE,
                             reason: "client was dropped from broadcast due to full/closed channel or missing sender".into(),
                         }))).await;
                         break;

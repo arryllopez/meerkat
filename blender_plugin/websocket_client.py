@@ -90,9 +90,15 @@ class WebSocketClient:
                             self.last_close_code = e.code
                             self.last_close_reason = e.reason or ""
                             state.evicted = (e.code == EVICTED_CLOSE_CODE)
+                            state.connected = False
+                            state.reconnecting = True
+                            state.reconnect_attempt = 0
+                            self.ws = None
                             break
 
             except Exception:
+                state.connected = False
+                self.ws = None
                 pass  # fall through to retry logic below
 
             # --- Retry logic ---
@@ -126,9 +132,10 @@ class WebSocketClient:
         self.running = False
 
     def send(self, message_dict):
-        if self.ws and self.loop and self.running:
+        ws = self.ws
+        if ws and self.loop and self.running and not ws.closed:
             data = json.dumps(message_dict)
-            asyncio.run_coroutine_threadsafe(self.ws.send(data), self.loop)
+            asyncio.run_coroutine_threadsafe(ws.send(data), self.loop)
 
     def disconnect(self):
         self.running = False

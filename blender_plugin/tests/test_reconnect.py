@@ -29,6 +29,7 @@ class MockWS:
         self._drop_after = drop_after  # drop after N recv() calls
         self._recv_count = 0
         self.closed = False
+        self.close_code = close_code
         self._close_code = close_code
         self._close_reason = close_reason
 
@@ -141,6 +142,7 @@ def run(result):
     test_reconnect_resets_retry_index(result)
     test_reconnect_only_one_join_per_reconnect(result)
     test_eviction_close_code_sets_client_evicted(result)
+    test_connection_close_marks_state_disconnected_during_retry(result)
 
 
 def test_initial_connect_no_join_from_listen(result):
@@ -526,6 +528,62 @@ def test_eviction_close_code_sets_client_evicted(result):
             errors.append("is_evicted() should be True")
         if not state.evicted:
             errors.append("state.evicted should be True")
+
+        if not errors:
+            result.ok(name)
+        else:
+            result.fail(name, "; ".join(errors))
+    except Exception as e:
+        result.fail(name, str(e))
+    finally:
+        _unpatch()
+
+
+def test_connection_close_marks_state_disconnected_during_retry(result):
+    """Any connection close should set connected=False before retry loop."""
+    name = "close sets connected false before retry"
+    state = _reset_state()
+
+    ws1 = MockWS(drop_after=0, close_code=1006, close_reason="abnormal")
+    ws2 = MockWS(drop_after=1)
+    mock_connect = MockConnectContext([ws1, ws2])
+    client = _make_client()
+    _patch(client, mock_connect)
+
+    async def drive():
+        import blender_plugin.websocket_client as ws_mod
+        original_sleep = asyncio.sleep
+
+        async def fast_sleep(delay):
+            await original_sleep(0)
+
+        ws_mod.asyncio = type(sys)("fake_asyncio")
+        ws_mod.asyncio.__dict__.update(asyncio.__dict__)
+        ws_mod.asyncio.sleep = fast_sleep
+
+        try:
+            task = asyncio.create_task(client._listen())
+            await original_sleep(0.02)
+            disconnected_during_retry = (not state.connected)
+            client.running = False
+            state.intentional_disconnect = True
+            try:
+                await asyncio.wait_for(task, timeout=1.0)
+            except (asyncio.TimeoutError, asyncio.CancelledError):
+                pass
+            return disconnected_during_retry
+        finally:
+            ws_mod.asyncio = asyncio
+
+    try:
+        disconnected_during_retry = asyncio.run(drive())
+        errors = []
+        if not disconnected_during_retry:
+            errors.append("state.connected should become False after close")
+        if not state.reconnecting:
+            errors.append("state.reconnecting should be True during retry")
+        if state.evicted:
+            errors.append("state.evicted should remain False for non-4008 close")
 
         if not errors:
             result.ok(name)
