@@ -139,6 +139,7 @@ class WebSocketClient:
         self.last_close_reason = ""
 
     def is_evicted(self):
-        if self.ws is not None and self.ws.closed:
-            return self.ws.close_code == EVICTED_CLOSE_CODE
+        ws = self.ws
+        if ws is not None and ws.closed:
+            return ws.close_code == EVICTED_CLOSE_CODE
         return self.last_close_code == EVICTED_CLOSE_CODE

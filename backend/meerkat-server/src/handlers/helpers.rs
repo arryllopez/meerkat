@@ -41,6 +41,8 @@ pub fn broadcast(state: &AppState, session_id: &str, json: &str, exclude: Option
                         connection_id = %conn_id,
                         "dropped outbound message: receiver channel is full"
                     );
+                    // Aggressive eviction of connections that cant keep up 
+                    // Temp fix for now
                     to_evict.push(conn_id); 
                 }
                 Err(TrySendError::Closed(_)) => {
