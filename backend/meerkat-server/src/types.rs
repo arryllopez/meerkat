@@ -25,6 +25,14 @@ pub struct AppState {
     pub connections: Arc<DashMap<Uuid, mpsc::Sender<String>>>,
     /// Maps connection_id → (session_id, user_id) for session-scoped broadcast routing.
     pub connection_meta: Arc<DashMap<Uuid, (String, Uuid)>>,
+    /// Per-connection lag tracking for bounded queue backpressure decisions.
+    pub connection_backpressure: Arc<DashMap<Uuid, LagState>>,
+}
+
+#[derive(Clone, Debug)]
+pub struct LagState {
+    pub strikes: u8,
+    pub last_full_at_ms: u64,
 }
 
 // Session related logic is simplified by using a separate struct that contains RwLocks for interior mutability,

@@ -28,7 +28,7 @@ pub async fn handler(ws: WebSocketUpgrade, State(state): State<AppState>) -> Res
 
 pub async fn handle_connection(mut socket: WebSocket, state: AppState) {
     let connection_id = Uuid::new_v4();
-    let (tx, mut rx) = mpsc::channel::<String>(32);
+    let (tx, mut rx) = mpsc::channel::<String>(64);
     state.connections.insert(connection_id, tx);
 
     tracing::info!(connection_id = %connection_id, "connection opened");
@@ -80,6 +80,7 @@ pub async fn handle_connection(mut socket: WebSocket, state: AppState) {
 
     // ── Disconnect cleanup ────────────────────────────────────────────────────
     state.connections.remove(&connection_id);
+    state.connection_backpressure.remove(&connection_id);
 
     // If the client was in a session (did not call LeaveSession cleanly), clean up now.
     if let Some((_, (sid, uid))) = state.connection_meta.remove(&connection_id) {
@@ -133,5 +134,3 @@ async fn dispatch(
         ClientEvent::UpdateCursor(p)     => handlers::update_cursor::handle(state, connection_id, p).await,
     }
 }
-
-

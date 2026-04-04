@@ -2,7 +2,10 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use tokio::sync::mpsc::error::TrySendError;
 use uuid::Uuid;
 
-use crate::types::AppState;
+use crate::types::{AppState, LagState};
+
+const BACKPRESSURE_RESET_MS: u64 = 5_000;
+const BACKPRESSURE_EVICT_STRIKES: u8 = 3;
 
 pub fn now_ms() -> u64 {
     SystemTime::now()
@@ -33,17 +36,20 @@ pub fn broadcast(state: &AppState, session_id: &str, json: &str, exclude: Option
             match tx.try_send(json.to_owned()) {
                 Ok(()) => {
                     delivered += 1;
+                    decay_lag_strikes_on_ok_send(state, conn_id, now_ms());
                 }
                 Err(TrySendError::Full(_)) => {
                     dropped_full += 1;
+                    let strikes = record_full_strike(state, conn_id, now_ms());
                     tracing::warn!(
                         session_id = %session_id,
                         connection_id = %conn_id,
+                        strikes,
                         "dropped outbound message: receiver channel is full"
                     );
-                    // Aggressive eviction of connections that cant keep up 
-                    // Temp fix for now
-                    to_evict.push(conn_id); 
+                    if strikes >= BACKPRESSURE_EVICT_STRIKES {
+                        to_evict.push(conn_id);
+                    }
                 }
                 Err(TrySendError::Closed(_)) => {
                     dropped_closed += 1;
@@ -56,11 +62,11 @@ pub fn broadcast(state: &AppState, session_id: &str, json: &str, exclude: Option
                 }
             }
         } else {
-            missing_tx += 1; 
+            missing_tx += 1;
             to_evict.push(conn_id);
             tracing::warn!(
                 session_id = %session_id,
-                connection_id = %conn_id,   
+                connection_id = %conn_id,
                 "dropped outbound message: no sender channel found for connection"
             );
         }
@@ -87,5 +93,43 @@ pub fn evict_connection(state: &AppState, connection_ids: &[Uuid]) {
     for conn_id in connection_ids {
         state.connections.remove(conn_id);
         state.connection_meta.remove(conn_id);
+        state.connection_backpressure.remove(conn_id);
+    }
+}
+
+fn record_full_strike(state: &AppState, connection_id: Uuid, now_ms: u64) -> u8 {
+    if let Some(mut lag) = state.connection_backpressure.get_mut(&connection_id) {
+        if now_ms.saturating_sub(lag.last_full_at_ms) > BACKPRESSURE_RESET_MS {
+            lag.strikes = 0;
+        }
+        lag.strikes = lag.strikes.saturating_add(1);
+        lag.last_full_at_ms = now_ms;
+        lag.strikes
+    } else {
+        state.connection_backpressure.insert(
+            connection_id,
+            LagState {
+                strikes: 1,
+                last_full_at_ms: now_ms,
+            },
+        );
+        1
+    }
+}
+
+fn decay_lag_strikes_on_ok_send(state: &AppState, connection_id: Uuid, now_ms: u64) {
+    let mut remove_state = false;
+
+    if let Some(mut lag) = state.connection_backpressure.get_mut(&connection_id) {
+        if now_ms.saturating_sub(lag.last_full_at_ms) > BACKPRESSURE_RESET_MS {
+            lag.strikes = 0;
+        } else {
+            lag.strikes = lag.strikes.saturating_sub(1);
+        }
+        remove_state = lag.strikes == 0;
+    }
+
+    if remove_state {
+        state.connection_backpressure.remove(&connection_id);
     }
 }

@@ -37,6 +37,7 @@ fn broadcast_drops_when_connection_queue_is_full() {
         sessions,
         connections,
         connection_meta,
+        connection_backpressure: Arc::new(DashMap::new()),
     };
 
     for _ in 0..32 {
@@ -58,4 +59,52 @@ fn broadcast_drops_when_connection_queue_is_full() {
         drained += 1;
     }
     assert_eq!(drained, 32, "expected exactly 32 queued messages");
+}
+
+#[test]
+fn broadcast_evicts_after_three_full_strikes() {
+    let session_id = "strike-test".to_string();
+    let connection_id = Uuid::new_v4();
+    let user_id = Uuid::new_v4();
+
+    let sessions = Arc::new(DashMap::new());
+    let connections = Arc::new(DashMap::new());
+    let connection_meta = Arc::new(DashMap::new());
+    connection_meta.insert(connection_id, (session_id.clone(), user_id));
+
+    let state = AppState {
+        sessions,
+        connections,
+        connection_meta,
+        connection_backpressure: Arc::new(DashMap::new()),
+    };
+
+    let (tx, _rx) = mpsc::channel::<String>(1);
+    tx.try_send("prefill".to_string())
+        .expect("prefill should succeed");
+    state.connections.insert(connection_id, tx.clone());
+
+    for _ in 0..2 {
+        let delivered = broadcast(&state, &session_id, "{\"event_type\":\"Test\"}", None);
+        assert_eq!(delivered, 0);
+        assert!(
+            state.connections.get(&connection_id).is_some(),
+            "connection should not be evicted before third strike"
+        );
+    }
+
+    let delivered = broadcast(&state, &session_id, "{\"event_type\":\"Test\"}", None);
+    assert_eq!(delivered, 0);
+    assert!(
+        state.connections.get(&connection_id).is_none(),
+        "connection should be evicted on third strike"
+    );
+    assert!(
+        state.connection_meta.get(&connection_id).is_none(),
+        "connection metadata should be removed on eviction"
+    );
+    assert!(
+        state.connection_backpressure.get(&connection_id).is_none(),
+        "lag state should be removed on eviction"
+    );
 }
