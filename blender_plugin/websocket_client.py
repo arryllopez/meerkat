@@ -12,6 +12,7 @@ import websockets
 
 
 RECONNECT_DELAYS = [3, 9, 27]  # powers of 3, ~39s total
+EVICTED_CLOSE_CODE = 4008
 
 
 class WebSocketClient:
@@ -26,6 +27,8 @@ class WebSocketClient:
         self.connected_event = threading.Event()
         self.session_id = ""
         self.display_name = ""
+        self.last_close_code = None
+        self.last_close_reason = ""
 
     def connect(self, session_id="", display_name=""):
         self.session_id = session_id
@@ -54,7 +57,11 @@ class WebSocketClient:
             try:
                 async with websockets.connect(self.url) as ws:
                     self.ws = ws
+                    self.last_close_code = None
+                    self.last_close_reason = ""
                     self.connected_event.set()
+                    state.connected = True
+                    state.evicted = False
                     state.reconnecting = False
                     state.reconnect_attempt = 0
                     retry_index = 0  # reset on successful connection
@@ -79,7 +86,10 @@ class WebSocketClient:
                             self.incoming.put(msg)
                         except asyncio.TimeoutError:
                             continue
-                        except websockets.ConnectionClosed:
+                        except websockets.ConnectionClosed as e:
+                            self.last_close_code = e.code
+                            self.last_close_reason = e.reason or ""
+                            state.evicted = (e.code == EVICTED_CLOSE_CODE)
                             break
 
             except Exception:
@@ -125,3 +135,10 @@ class WebSocketClient:
         if self.ws and self.loop:
             asyncio.run_coroutine_threadsafe(self.ws.close(), self.loop)
         self.ws = None
+        self.last_close_code = None
+        self.last_close_reason = ""
+
+    def is_evicted(self):
+        if self.ws is not None and self.ws.closed:
+            return self.ws.close_code == EVICTED_CLOSE_CODE
+        return self.last_close_code == EVICTED_CLOSE_CODE

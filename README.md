@@ -67,7 +67,7 @@ Meerkat fixes that.
 - [x] **Phase 2 (Weeks 2-3): Blender plugin skeleton** - addon structure, connect/disconnect flow, and initial full state sync.
 - [x] **Phase 3 (Weeks 3-4): Object lifecycle sync** - create/delete/sync for primitives, cameras, lights, and asset references.
 - [x] **Phase 4 (Weeks 4-5): Transform and property sync** - 30Hz throttled transforms, property updates, and name syncing.
-- [ ] **Phase 5 (Weeks 5-6): Presence and resilience** - users panel, selection highlights, robust full sync, reconnect handling, and scene export.
+- [x] **Phase 5 (Weeks 5-6): Presence and resilience** - users panel, selection highlights, robust full sync, reconnect handling, and scene export.
 - [ ] **Phase 6 (Weeks 6-7): Observability and durability** - file-backed event log, crash recovery, metrics endpoint, and benchmarking.
 - [ ] **Phase 7 (Weeks 7-8): Polish and deployment** - Docker, cloud deployment (WSS), rate limits, packaging, ADRs, and launch demo.
 
@@ -79,7 +79,7 @@ Detailed implementation checklist: `CLAUDE.MD` (see **Implementation Phases**).
 
 ### Glaring backend issues to fix
 
-- [ ] **Silent message drops under load**: `mpsc::channel(32)` plus `try_send` currently drops messages when queues fill (`backend/meerkat-server/src/websocket.rs`, `backend/meerkat-server/src/handlers/helpers.rs`).
+- [x] **Silent message drops under load**: `mpsc::channel(32)` plus `try_send` currently drops messages when queues fill (`backend/meerkat-server/src/websocket.rs`, `backend/meerkat-server/src/handlers/helpers.rs`).
 - [ ] **Broadcast cost scales with total connections**: fanout iterates all `connection_meta`, not just peers in the session (`backend/meerkat-server/src/handlers/helpers.rs`).
 - [ ] **Re-join can leave stale membership**: a connection can overwrite `connection_meta` without full prior cleanup (`backend/meerkat-server/src/handlers/join_session.rs`).
 - [ ] **Object ID clobber risk**: `CreateObject` inserts directly; duplicate IDs can overwrite state (`backend/meerkat-server/src/handlers/create_object.rs`).

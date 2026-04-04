@@ -13,7 +13,7 @@ if plugin_dir not in sys.path:
     sys.path.insert(0, os.path.dirname(plugin_dir))
 
 from blender_plugin.state import PluginState
-from blender_plugin.websocket_client import WebSocketClient, RECONNECT_DELAYS
+from blender_plugin.websocket_client import WebSocketClient, RECONNECT_DELAYS, EVICTED_CLOSE_CODE
 from websockets.exceptions import ConnectionClosed as WsConnectionClosed
 
 
@@ -22,13 +22,15 @@ from websockets.exceptions import ConnectionClosed as WsConnectionClosed
 class MockWS:
     """Fake async websocket that records sent messages and can simulate drops."""
 
-    def __init__(self, recv_messages=None, drop_after=None):
+    def __init__(self, recv_messages=None, drop_after=None, close_code=None, close_reason=None):
         self.sent = []
         self._recv_messages = list(recv_messages or [])
         self._recv_index = 0
         self._drop_after = drop_after  # drop after N recv() calls
         self._recv_count = 0
         self.closed = False
+        self._close_code = close_code
+        self._close_reason = close_reason
 
     async def send(self, data):
         self.sent.append(data)
@@ -36,7 +38,7 @@ class MockWS:
     async def recv(self):
         self._recv_count += 1
         if self._drop_after is not None and self._recv_count > self._drop_after:
-            raise WsConnectionClosed(None, None)
+            raise WsConnectionClosed(self._close_code, self._close_reason)
         if self._recv_index < len(self._recv_messages):
             msg = self._recv_messages[self._recv_index]
             self._recv_index += 1
@@ -138,6 +140,7 @@ def run(result):
     test_all_retries_exhausted(result)
     test_reconnect_resets_retry_index(result)
     test_reconnect_only_one_join_per_reconnect(result)
+    test_eviction_close_code_sets_client_evicted(result)
 
 
 def test_initial_connect_no_join_from_listen(result):
@@ -469,6 +472,60 @@ def test_reconnect_only_one_join_per_reconnect(result):
             errors.append(f"ws2 (reconnect 1): expected 1 JoinSession, got {len(ws2_joins)}")
         if len(ws3_joins) != 1:
             errors.append(f"ws3 (reconnect 2): expected 1 JoinSession, got {len(ws3_joins)}")
+
+        if not errors:
+            result.ok(name)
+        else:
+            result.fail(name, "; ".join(errors))
+    except Exception as e:
+        result.fail(name, str(e))
+    finally:
+        _unpatch()
+
+
+def test_eviction_close_code_sets_client_evicted(result):
+    """Close code 4008 should be captured and exposed as an eviction."""
+    name = "eviction close code sets is_evicted"
+    state = _reset_state()
+
+    ws1 = MockWS(drop_after=0, close_code=EVICTED_CLOSE_CODE, close_reason="lagging")
+    mock_connect = MockConnectContext([ws1])
+    client = _make_client()
+    _patch(client, mock_connect)
+
+    async def drive():
+        import blender_plugin.websocket_client as ws_mod
+        original_sleep = asyncio.sleep
+
+        async def fast_sleep(delay):
+            await original_sleep(0)
+
+        ws_mod.asyncio = type(sys)("fake_asyncio")
+        ws_mod.asyncio.__dict__.update(asyncio.__dict__)
+        ws_mod.asyncio.sleep = fast_sleep
+
+        try:
+            # Stop retries so test exits quickly after first close
+            task = asyncio.create_task(client._listen())
+            await original_sleep(0.01)
+            state.intentional_disconnect = True
+            client.running = False
+            try:
+                await asyncio.wait_for(task, timeout=1.0)
+            except (asyncio.TimeoutError, asyncio.CancelledError):
+                pass
+        finally:
+            ws_mod.asyncio = asyncio
+
+    try:
+        asyncio.run(drive())
+        errors = []
+        if client.last_close_code != EVICTED_CLOSE_CODE:
+            errors.append(f"expected close code {EVICTED_CLOSE_CODE}, got {client.last_close_code}")
+        if not client.is_evicted():
+            errors.append("is_evicted() should be True")
+        if not state.evicted:
+            errors.append("state.evicted should be True")
 
         if not errors:
             result.ok(name)

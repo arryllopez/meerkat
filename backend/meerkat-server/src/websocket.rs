@@ -1,13 +1,13 @@
 use axum::{
     extract::{
         State,
-        ws::{WebSocket, WebSocketUpgrade},
+        ws::{WebSocket, WebSocketUpgrade, CloseFrame, Message},
     },
     response::Response,
 };
 use tokio::sync::mpsc;
 use uuid::Uuid;
-use axum::extract::ws::Message;
+
 
 use crate::{
     handlers::{
@@ -35,26 +35,44 @@ pub async fn handle_connection(mut socket: WebSocket, state: AppState) {
 
     loop {
         tokio::select! {
-            Some(msg) = socket.recv() => {
-                let text = match msg {
-                    Ok(Message::Text(t)) => t.to_string(),
-                    Ok(Message::Close(_)) | Err(_) => break,
-                    _ => continue,
-                };
-                match parse_client_message(&text) {
-                    Ok(event) => dispatch(&mut socket, &state, connection_id, event).await,
-                    Err(e) => {
-                        tracing::warn!(
-                            connection_id = %connection_id,
-                            error = %e,
-                            "failed to parse client message"
-                        );
+            msg = socket.recv() => {
+                match msg {
+                    Some(Ok(Message::Text(t))) => {
+                        let text = t.to_string();
+                        match parse_client_message(&text) {
+                            Ok(event) => dispatch(&mut socket, &state, connection_id, event).await,
+                            Err(e) => {
+                                tracing::warn!(
+                                    connection_id = %connection_id,
+                                    error = %e,
+                                    "failed to parse client message"
+                                );
+                            }
+                        }
+                    }
+                    Some(Ok(Message::Close(_))) => break,
+                    Some(Ok(_)) => continue,
+                    Some(Err(_)) => break,
+                    None => { 
+                        // This none case means the server cant read client messages 
+                        break; 
                     }
                 }
             }
-            Some(text) = rx.recv() => {
-                if socket.send(Message::Text(text.into())).await.is_err() {
-                    break;
+            msg = rx.recv() => {
+                match msg { 
+                    Some (text) => {
+                        if socket.send(Message::Text(text.into())).await.is_err() {
+                            break;
+                        }
+                    }
+                    None => {
+                        let _ = socket.send(Message::Close(Some(CloseFrame {
+                            code: 4008,
+                            reason: "client was dropped from broadcast due to full/closed channel or missing sender".into(),
+                        }))).await;
+                        break;
+                    }
                 }
             }
         }
@@ -115,3 +133,5 @@ async fn dispatch(
         ClientEvent::UpdateCursor(p)     => handlers::update_cursor::handle(state, connection_id, p).await,
     }
 }
+
+

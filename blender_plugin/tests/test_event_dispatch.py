@@ -14,6 +14,7 @@ from blender_plugin.event_handlers import (
     handle_user_joined,
     handle_user_left,
 )
+from blender_plugin.panels import _connection_status_lines
 from blender_plugin.tests.helpers import reset_state, clear_scene, TestResult
 
 
@@ -135,3 +136,43 @@ def run(result):
         result.ok("UserLeft for nonexistent user → no crash")
     except Exception as e:
         result.fail("UserLeft for nonexistent user → no crash", str(e))
+
+    test_connection_status_lines(result)
+
+
+def test_connection_status_lines(result):
+    """Panel connection status text is stable for evicted and reconnecting states."""
+    state, _ = reset_state()
+
+    state.connected = False
+    state.reconnecting = False
+    state.evicted = False
+    lines = _connection_status_lines(state)
+    if lines == []:
+        result.ok("panel status: disconnected non-evicted shows no warning")
+    else:
+        result.fail("panel status: disconnected non-evicted shows no warning", str(lines))
+
+    state.connected = False
+    state.reconnecting = False
+    state.evicted = True
+    lines = _connection_status_lines(state)
+    expected = [("Connection closed: client fell behind", 'ERROR')]
+    if lines == expected:
+        result.ok("panel status: evicted disconnected warning text")
+    else:
+        result.fail("panel status: evicted disconnected warning text", str(lines))
+
+    state.connected = False
+    state.reconnecting = True
+    state.reconnect_attempt = 2
+    state.evicted = True
+    lines = _connection_status_lines(state)
+    expected = [
+        ("Disconnected by server (lag)", 'ERROR'),
+        ("Reconnecting (2/3)...", 'TIME'),
+    ]
+    if lines == expected:
+        result.ok("panel status: evicted reconnecting text")
+    else:
+        result.fail("panel status: evicted reconnecting text", str(lines))
