@@ -118,7 +118,7 @@ fn record_full_strike(state: &AppState, connection_id: Uuid, now_ms: u64) -> u8 
 }
 
 fn decay_lag_strikes_on_ok_send(state: &AppState, connection_id: Uuid, now_ms: u64) {
-    let mut remove_state = false;
+    let mut should_remove = false;
 
     if let Some(mut lag) = state.connection_backpressure.get_mut(&connection_id) {
         if now_ms.saturating_sub(lag.last_full_at_ms) > BACKPRESSURE_RESET_MS {
@@ -126,10 +126,12 @@ fn decay_lag_strikes_on_ok_send(state: &AppState, connection_id: Uuid, now_ms: u
         } else {
             lag.strikes = lag.strikes.saturating_sub(1);
         }
-        remove_state = lag.strikes == 0;
+        should_remove = lag.strikes == 0;
     }
 
-    if remove_state {
-        state.connection_backpressure.remove(&connection_id);
+    if should_remove {
+        state
+            .connection_backpressure
+            .remove_if(&connection_id, |_, lag| lag.strikes == 0);
     }
 }

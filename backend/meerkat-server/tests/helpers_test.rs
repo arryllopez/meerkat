@@ -68,6 +68,14 @@ fn broadcast_evicts_after_three_full_strikes() {
     let user_id = Uuid::new_v4();
 
     let sessions = Arc::new(DashMap::new());
+    sessions.insert(
+        session_id.clone(),
+        Arc::new(SessionHandle {
+            objects: RwLock::new(HashMap::new()),
+            users: RwLock::new(HashMap::new()),
+            session_id: session_id.clone(),
+        }),
+    );
     let connections = Arc::new(DashMap::new());
     let connection_meta = Arc::new(DashMap::new());
     connection_meta.insert(connection_id, (session_id.clone(), user_id));
