@@ -2,6 +2,17 @@ import bpy
 from .state import PluginState
 
 
+def _connection_status_lines(state):
+    lines = []
+    if state.reconnecting:
+        if state.evicted:
+            lines.append(("Disconnected by server (lag)", 'ERROR'))
+        lines.append((f"Reconnecting ({state.reconnect_attempt}/{3})...", 'TIME'))
+    elif not state.connected and state.evicted:
+        lines.append(("Connection closed: client fell behind", 'ERROR'))
+    return lines
+
+
 class MEERKAT_PT_main_panel(bpy.types.Panel):
     bl_label = "Meerkat Collaboration"
     bl_idname = "MEERKAT_PT_main_panel"
@@ -13,8 +24,11 @@ class MEERKAT_PT_main_panel(bpy.types.Panel):
         layout = self.layout
         state = PluginState()
 
+        for text, icon in _connection_status_lines(state):
+            layout.label(text=text, icon=icon)
+
         if state.reconnecting:
-            layout.label(text=f"Reconnecting ({state.reconnect_attempt}/{3})...", icon='TIME')
+            pass
         elif not state.connected:
             layout.prop(context.scene, "meerkat_room_name")
             layout.prop(context.scene, "meerkat_display_name")
@@ -49,4 +63,3 @@ class MEERKAT_PT_main_panel(bpy.types.Panel):
             layout.operator("meerkat.save_scene", icon='FILE_TICK')
             layout.operator("meerkat.disconnect", icon='CANCEL')
             
-

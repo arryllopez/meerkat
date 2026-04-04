@@ -25,18 +25,23 @@ use meerkat_server::{
 type WsStream = WebSocketStream<MaybeTlsStream<TcpStream>>;
 
 async fn start_test_server() -> String {
+    start_test_server_with_state().await.0
+}
+
+async fn start_test_server_with_state() -> (String, AppState) {
     let state = AppState {
         sessions: Arc::new(DashMap::new()),
         connections: Arc::new(DashMap::new()),
         connection_meta: Arc::new(DashMap::new()),
+        connection_backpressure: Arc::new(DashMap::new()),
     };
-    let app = Router::new().route("/ws", any(handler)).with_state(state);
+    let app = Router::new().route("/ws", any(handler)).with_state(state.clone());
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let port = listener.local_addr().unwrap().port();
     tokio::spawn(async move {
         axum::serve(listener, app).await.unwrap();
     });
-    format!("ws://127.0.0.1:{}/ws", port)
+    (format!("ws://127.0.0.1:{}/ws", port), state)
 }
 
 /// Sends a ClientEvent as JSON text over the WebSocket.
@@ -506,4 +511,54 @@ fn extract_object_id(event: ServerEvent) -> Uuid {
         ServerEvent::ObjectCreated(p) => p.object.object_id,
         other => panic!("expected ObjectCreated, got {:?}", other),
     }
+}
+
+#[tokio::test]
+async fn test_evicted_client_receives_close_code_4008() {
+    let (url, state) = start_test_server_with_state().await;
+    let session_id = "evict-close";
+
+    let (mut ws, _) = connect_async(&url).await.expect("connect failed");
+    send(&mut ws, ClientEvent::JoinSession(JoinSessionPayload {
+        session_id: session_id.to_string(),
+        display_name: "Alice".to_string(),
+    })).await;
+    let sync = recv(&mut ws).await;
+    assert!(matches!(sync, ServerEvent::FullStateSync(_)));
+
+    let conn_id = timeout(Duration::from_secs(2), async {
+        loop {
+            for entry in state.connection_meta.iter() {
+                let (sid, _) = entry.value();
+                if sid == session_id {
+                    return *entry.key();
+                }
+            }
+            tokio::time::sleep(Duration::from_millis(10)).await;
+        }
+    })
+    .await
+    .expect("timed out waiting for connection metadata");
+
+    let removed = state.connections.remove(&conn_id);
+    assert!(removed.is_some(), "expected active sender for joined connection");
+    drop(removed);
+
+    let close_frame = timeout(Duration::from_secs(5), async {
+        loop {
+            let msg = ws
+                .next()
+                .await
+                .expect("stream closed before close frame")
+                .expect("websocket error while waiting for close");
+            if let Message::Close(frame) = msg {
+                return frame;
+            }
+        }
+    })
+    .await
+    .expect("timed out waiting for close frame");
+
+    let frame = close_frame.expect("expected close frame details");
+    assert_eq!(u16::from(frame.code), 4008, "expected eviction close code 4008");
 }

@@ -37,6 +37,7 @@ class PluginState(metaclass=Singleton):
     reconnecting: bool = False 
     reconnect_attempt :int = 0 
     intentional_disconnect : bool = False 
+    evicted: bool = False
     cursor_positions: dict = field(default_factory=dict)
     last_cursor_send: float = 0.0
     _last_mouse: object | None = None                        # (region, rv3d, mx, my) from modal

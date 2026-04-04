@@ -70,6 +70,7 @@ class MEERKAT_OT_connect(bpy.types.Operator):
         state.session_id = room_name
         state.display_name = display_name
         state.connected = True
+        state.evicted = False
 
         client.send({
             "event_type": "JoinSession",
@@ -107,6 +108,7 @@ class MEERKAT_OT_disconnect(bpy.types.Operator):
         state.ws_client.disconnect()
         state.ws_client = None
         state.connected = False
+        state.evicted = False
         state.session_id = ""
         state.display_name = ""
         state.object_map.clear()

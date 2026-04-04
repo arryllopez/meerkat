@@ -1,13 +1,13 @@
 use axum::{
     extract::{
         State,
-        ws::{WebSocket, WebSocketUpgrade},
+        ws::{CloseCode, CloseFrame, Message, WebSocket, WebSocketUpgrade},
     },
     response::Response,
 };
 use tokio::sync::mpsc;
 use uuid::Uuid;
-use axum::extract::ws::Message;
+
 
 use crate::{
     handlers::{
@@ -17,6 +17,8 @@ use crate::{
     messages::{ClientEvent, ServerEvent, UserLeftPayload, parse_client_message},
     types::AppState,
 };
+
+const EVICTED_CLOSE_CODE: CloseCode = 4008;
 
 // ── HTTP upgrade entry-point ──────────────────────────────────────────────────
 
@@ -28,33 +30,51 @@ pub async fn handler(ws: WebSocketUpgrade, State(state): State<AppState>) -> Res
 
 pub async fn handle_connection(mut socket: WebSocket, state: AppState) {
     let connection_id = Uuid::new_v4();
-    let (tx, mut rx) = mpsc::channel::<String>(32);
+    let (tx, mut rx) = mpsc::channel::<String>(64);
     state.connections.insert(connection_id, tx);
 
     tracing::info!(connection_id = %connection_id, "connection opened");
 
     loop {
         tokio::select! {
-            Some(msg) = socket.recv() => {
-                let text = match msg {
-                    Ok(Message::Text(t)) => t.to_string(),
-                    Ok(Message::Close(_)) | Err(_) => break,
-                    _ => continue,
-                };
-                match parse_client_message(&text) {
-                    Ok(event) => dispatch(&mut socket, &state, connection_id, event).await,
-                    Err(e) => {
-                        tracing::warn!(
-                            connection_id = %connection_id,
-                            error = %e,
-                            "failed to parse client message"
-                        );
+            msg = socket.recv() => {
+                match msg {
+                    Some(Ok(Message::Text(t))) => {
+                        let text = t.to_string();
+                        match parse_client_message(&text) {
+                            Ok(event) => dispatch(&mut socket, &state, connection_id, event).await,
+                            Err(e) => {
+                                tracing::warn!(
+                                    connection_id = %connection_id,
+                                    error = %e,
+                                    "failed to parse client message"
+                                );
+                            }
+                        }
+                    }
+                    Some(Ok(Message::Close(_))) => break,
+                    Some(Ok(_)) => continue,
+                    Some(Err(_)) => break,
+                    None => { 
+                        // This none case means the server cant read client messages 
+                        break; 
                     }
                 }
             }
-            Some(text) = rx.recv() => {
-                if socket.send(Message::Text(text.into())).await.is_err() {
-                    break;
+            msg = rx.recv() => {
+                match msg { 
+                    Some (text) => {
+                        if socket.send(Message::Text(text.into())).await.is_err() {
+                            break;
+                        }
+                    }
+                    None => {
+                        let _ = socket.send(Message::Close(Some(CloseFrame {
+                            code: EVICTED_CLOSE_CODE,
+                            reason: "client was dropped from broadcast due to full/closed channel or missing sender".into(),
+                        }))).await;
+                        break;
+                    }
                 }
             }
         }
@@ -62,6 +82,7 @@ pub async fn handle_connection(mut socket: WebSocket, state: AppState) {
 
     // ── Disconnect cleanup ────────────────────────────────────────────────────
     state.connections.remove(&connection_id);
+    state.connection_backpressure.remove(&connection_id);
 
     // If the client was in a session (did not call LeaveSession cleanly), clean up now.
     if let Some((_, (sid, uid))) = state.connection_meta.remove(&connection_id) {
