@@ -558,7 +558,7 @@ EVENT_HANDLERS = {
 def timer_function():
     timer: float = 0.05
     state = PluginState()
-    if state.ws_client and state.ws_client.is_evicted():
+    if state.ws_client and state.ws_client.is_evicted() and not state.evicted:
         state.connected = False
         state.evicted = True
         _redraw_panels()
