@@ -23,12 +23,13 @@ pub fn broadcast(state: &AppState, session_id: &str, json: &str, exclude: Option
     // Initialize a vector to track connections that should be evicted due to full or closed channels
     let mut to_evict = Vec::new();
 
-    for entry in state.connection_meta.iter() {
-        let (conn_session, _) = entry.value();
-        if conn_session.as_str() != session_id {
-            continue;
-        }
-        let conn_id = *entry.key();
+    let conn_ids: Vec<Uuid> = state
+    .session_connections
+    .get(session_id)
+    .map(|conns| conns.iter().copied().collect())
+    .unwrap_or_default();
+
+    for conn_id in conn_ids {
         if exclude == Some(conn_id) {
             continue;
         }
@@ -100,6 +101,19 @@ pub fn evict_connection(state: &AppState, connection_ids: &[Uuid]) {
     for conn_id in connection_ids {
         state.connections.remove(conn_id);
         state.connection_backpressure.remove(conn_id);
+
+        if let Some((_, (session_id, _user_id))) = state.connection_meta.remove(conn_id) {
+            let mut remove_session_entry = false;
+
+            if let Some(mut conns) = state.session_connections.get_mut(&session_id) {
+                conns.remove(conn_id);
+                remove_session_entry = conns.is_empty();
+            }
+
+            if remove_session_entry {
+                state.session_connections.remove(&session_id);
+            }
+        }
     }
 }
 

@@ -33,11 +33,15 @@ fn broadcast_drops_when_connection_queue_is_full() {
     let connection_meta = Arc::new(DashMap::new());
     connection_meta.insert(connection_id, (session_id.clone(), user_id));
 
+    let session_connections = Arc::new(DashMap::new());
+    session_connections.insert(session_id.clone(), [connection_id].into_iter().collect());
+
     let state = AppState {
         sessions,
         connections,
         connection_meta,
         connection_backpressure: Arc::new(DashMap::new()),
+        session_connections,
     };
 
     for _ in 0..32 {
@@ -80,11 +84,15 @@ fn broadcast_evicts_after_three_full_strikes() {
     let connection_meta = Arc::new(DashMap::new());
     connection_meta.insert(connection_id, (session_id.clone(), user_id));
 
+    let session_connections = Arc::new(DashMap::new());
+    session_connections.insert(session_id.clone(), [connection_id].into_iter().collect());
+
     let state = AppState {
         sessions,
         connections,
         connection_meta,
         connection_backpressure: Arc::new(DashMap::new()),
+        session_connections,
     };
 
     let (tx, _rx) = mpsc::channel::<String>(1);
@@ -108,8 +116,8 @@ fn broadcast_evicts_after_three_full_strikes() {
         "connection should be evicted on third strike"
     );
     assert!(
-        state.connection_meta.get(&connection_id).is_some(),
-        "connection metadata should remain until disconnect cleanup"
+        state.connection_meta.get(&connection_id).is_none(),
+        "connection metadata should be removed on eviction"
     );
     assert!(
         state.connection_backpressure.get(&connection_id).is_none(),

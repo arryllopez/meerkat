@@ -24,11 +24,15 @@ fn broadcast_evicts_connection_after_three_full_strikes() {
     let connection_meta = Arc::new(DashMap::new());
     connection_meta.insert(connection_id, (session_id.clone(), user_id));
 
+    let session_connections = Arc::new(DashMap::new());
+    session_connections.insert(session_id.clone(), [connection_id].into_iter().collect());
+
     let state = AppState {
         sessions: Arc::new(DashMap::new()),
         connections,
         connection_meta,
         connection_backpressure: Arc::new(DashMap::new()),
+        session_connections,
     };
 
     for _ in 0..2 {
@@ -48,8 +52,8 @@ fn broadcast_evicts_connection_after_three_full_strikes() {
         "full queue connection should be evicted on third strike"
     );
     assert!(
-        state.connection_meta.get(&connection_id).is_some(),
-        "evicted connection metadata should remain for disconnect cleanup"
+        state.connection_meta.get(&connection_id).is_none(),
+        "evicted connection metadata should be removed"
     );
 
     let mut drained = 0;

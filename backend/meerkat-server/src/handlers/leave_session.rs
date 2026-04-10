@@ -12,6 +12,15 @@ pub async fn handle(state: &AppState, connection_id: Uuid) {
         return;
     };
 
+    let mut remove_session_entry = false;
+    if let Some(mut conns) = state.session_connections.get_mut(&sid) {
+        conns.remove(&connection_id);
+        remove_session_entry = conns.is_empty();
+    }
+    if remove_session_entry {
+        state.session_connections.remove(&sid);
+    }
+
     if let Some(session) = state.sessions.get(&sid) {
         let mut users = match session.users.write(){ 
             Ok(guard) => guard, 

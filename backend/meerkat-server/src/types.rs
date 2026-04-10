@@ -1,6 +1,6 @@
 use dashmap::DashMap;
 use serde::{Deserialize, Serialize};
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use std::sync::RwLock;
 use tokio::sync::mpsc;
@@ -27,6 +27,7 @@ pub struct AppState {
     pub connection_meta: Arc<DashMap<Uuid, (String, Uuid)>>,
     /// Per-connection lag tracking for bounded queue backpressure decisions.
     pub connection_backpressure: Arc<DashMap<Uuid, LagState>>,
+    pub session_connections: Arc<DashMap<String, HashSet<Uuid>>>,
 }
 
 #[derive(Clone, Debug)]

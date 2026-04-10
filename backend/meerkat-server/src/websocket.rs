@@ -86,6 +86,15 @@ pub async fn handle_connection(mut socket: WebSocket, state: AppState) {
 
     // If the client was in a session (did not call LeaveSession cleanly), clean up now.
     if let Some((_, (sid, uid))) = state.connection_meta.remove(&connection_id) {
+        let mut remove_session_entry = false;
+        if let Some(mut conns) = state.session_connections.get_mut(&sid) {
+            conns.remove(&connection_id);
+            remove_session_entry = conns.is_empty();
+        }
+        if remove_session_entry {
+            state.session_connections.remove(&sid);
+        }
+
         if let Some(session) = state.sessions.get(&sid) {
             let mut users = match session.users.write() {
                 Ok(guard) => guard,

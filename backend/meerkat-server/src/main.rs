@@ -16,6 +16,7 @@ async fn main() {
         connections: Arc::new(DashMap::new()),
         connection_meta: Arc::new(DashMap::new()),
         connection_backpressure: Arc::new(DashMap::new()),
+        session_connections: Arc::new(DashMap::new()),
     };
 
     let app: Router = Router::new()

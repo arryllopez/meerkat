@@ -41,6 +41,7 @@ async fn start_server() -> String {
         connections: Arc::new(DashMap::new()),
         connection_meta: Arc::new(DashMap::new()),
         connection_backpressure: Arc::new(DashMap::new()),
+        session_connections: Arc::new(DashMap::new()),
     };
     let app = Router::new().route("/ws", any(handler)).with_state(state);
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();

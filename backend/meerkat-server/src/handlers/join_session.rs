@@ -1,7 +1,7 @@
 use axum::extract::ws::{Message, WebSocket};
 use std::sync::{Arc, RwLock};
 use crate::types::SessionHandle;
-use std::collections::HashMap;
+use std::collections::{HashMap};
 use uuid::Uuid;
 
 use crate::{
@@ -17,12 +17,7 @@ use super::helpers::{broadcast, now_ms};
 //   - This is done by acquiring read locks on the SessionHandle's internal state, cloning the data into a new Session struct, and sending it as a FullStateSync event.
 // 3) Broadcasting a UserJoined event to all other users in the session.
 
-pub async fn handle(
-    socket: &mut WebSocket,
-    state: &AppState,
-    connection_id: Uuid,
-    payload: JoinSessionPayload,
-) {
+pub async fn handle(socket :&mut WebSocket, state: &AppState, connection_id: Uuid, payload: JoinSessionPayload) {
     let session = state
         .sessions
         .entry(payload.session_id.clone())
@@ -61,6 +56,12 @@ pub async fn handle(
     state
         .connection_meta
         .insert(connection_id, (payload.session_id.clone(), user_id));
+    
+    state
+        .session_connections
+        .entry(payload.session_id.clone())
+        .or_default()
+        .insert(connection_id);
 
     tracing::info!(
         event_type = "JoinSession",
