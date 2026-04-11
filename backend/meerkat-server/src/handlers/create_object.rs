@@ -1,8 +1,9 @@
 use std::sync::Arc;
 use uuid::Uuid;
+use std::collections::hash_map::Entry;
 
 use crate::{
-    messages::{CreateObjectPayload, ObjectCreatedPayload, ServerEvent},
+    messages::{CreateObjectPayload, ErrorPayload, ObjectCreatedPayload, ServerEvent},
     types::{AppState, SceneObject},
 };
 
@@ -35,7 +36,7 @@ pub async fn handle(state: &AppState, connection_id: Uuid, payload: CreateObject
         last_updated_at: now,
     };
 
-    {
+    let inserted: bool = {
         let mut objects = match session.objects.write() {
             Ok(guard) => guard,
             Err(poisoned) => {
@@ -43,7 +44,46 @@ pub async fn handle(state: &AppState, connection_id: Uuid, payload: CreateObject
                 poisoned.into_inner()
             }
         };
-        objects.insert(object.object_id, object.clone());
+        match objects.entry(object.object_id) {
+            Entry::Vacant(v) => {
+                v.insert(object.clone());
+                true
+            }
+            Entry::Occupied(_) => false,
+        }
+    };
+
+    if !inserted {
+        tracing::warn!(
+            event_type = "CreateObject",
+            session_id = %sid,
+            user_id = %uid,
+            object_id = %payload.object_id,
+            "duplicate object_id on create; ignoring"
+        );
+
+        if let Some(tx) = state.connections.get(&connection_id) {
+            let error_json = serde_json::to_string(&ServerEvent::Error(ErrorPayload {
+                code: "DUPLICATE_OBJECT_ID".to_string(),
+                message: format!(
+                    "CreateObject rejected: object_id {} already exists in session {}",
+                    payload.object_id, sid
+                ),
+            }))
+            .expect("Error serialization failed");
+
+            if tx.try_send(error_json).is_err() {
+                tracing::warn!(
+                    event_type = "CreateObject",
+                    session_id = %sid,
+                    user_id = %uid,
+                    object_id = %payload.object_id,
+                    "failed to deliver duplicate-object error to sender"
+                );
+            }
+        }
+
+        return;
     }
 
     tracing::info!(

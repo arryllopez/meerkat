@@ -53,7 +53,7 @@ pub async fn handle(socket :&mut WebSocket, state: &AppState, connection_id: Uui
     // Broadcast UserLeft for old session 
     let left_json = serde_json::to_string(&ServerEvent::UserLeft(UserLeftPayload { user_id: old_uid }))
         .expect("UserLeft serialization failed during re-join cleanup");
-    let count = broadcast(&state, &old_sid, &left_json, Some(connection_id));
+    let count = broadcast(state, &old_sid, &left_json, Some(connection_id));
     tracing::info!(
         connection_id = %connection_id,
         old_session_id = %old_sid,

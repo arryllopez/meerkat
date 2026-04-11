@@ -61,12 +61,12 @@ async fn connect_and_join(url: &str, session_id: &str, display_name: &str) -> Ws
     ws.send(Message::Text(json.into())).await.unwrap();
     // Consume frames until we see FullStateSync.
     loop {
-        if let Some(Ok(Message::Text(t))) = ws.next().await {
-            if let Ok(ServerEvent::FullStateSync(_)) = serde_json::from_str::<ServerEvent>(&t) {
+        if let Some(Ok(Message::Text(t))) = ws.next().await 
+            && let Ok(ServerEvent::FullStateSync(_)) = serde_json::from_str::<ServerEvent>(&t) 
+            {
                 break;
             }
         }
-    }
     ws
 }
 
