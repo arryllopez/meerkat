@@ -9,10 +9,9 @@ async fn main() {
         .json()
         .init();
 
-    let sessions = Arc::new(DashMap::new());
 
     let state = AppState {
-        sessions,
+        sessions: Arc::new(DashMap::new()),
         connections: Arc::new(DashMap::new()),
         connection_meta: Arc::new(DashMap::new()),
         connection_backpressure: Arc::new(DashMap::new()),

@@ -81,7 +81,7 @@ Detailed implementation checklist: `CLAUDE.MD` (see **Implementation Phases**).
 
 - [x] **Silent message drops under load**: `mpsc::channel(32)` plus `try_send` currently drops messages when queues fill (`backend/meerkat-server/src/websocket.rs`, `backend/meerkat-server/src/handlers/helpers.rs`).
 - [x] **Broadcast cost scales with total connections**: fanout iterates all `connection_meta`, not just peers in the session (`backend/meerkat-server/src/handlers/helpers.rs`).
-- [ ] **Re-join can leave stale membership**: a connection can overwrite `connection_meta` without full prior cleanup (`backend/meerkat-server/src/handlers/join_session.rs`).
+- [x] **Re-join can leave stale membership**: a connection can overwrite `connection_meta` without full prior cleanup (`backend/meerkat-server/src/handlers/join_session.rs`).
 - [ ] **Object ID clobber risk**: `CreateObject` inserts directly; duplicate IDs can overwrite state (`backend/meerkat-server/src/handlers/create_object.rs`).
 - [ ] **Runtime `expect` in hot paths**: serialization `expect(...)` can crash server process during malformed data conditions (multiple handler files + `websocket.rs`).
 - [ ] **Sessions are never reclaimed**: empty sessions are retained forever, growing memory over time (`backend/meerkat-server/src/handlers/leave_session.rs`).
@@ -115,7 +115,7 @@ Detailed implementation checklist: `CLAUDE.MD` (see **Implementation Phases**).
 
 ### Cost and concurrency strategy (self-hosted cloud)
 
-- [ ] Use per-session connection indexes (`session_id -> connection_ids`) so broadcast work is O(session size).
+- [x] Use per-session connection indexes (`session_id -> connection_ids`) so broadcast work is O(session size).
 - [ ] Add protocol-level backpressure/coalescing (especially transform/cursor updates) and guaranteed handling for critical events.
 - [ ] Enforce guardrails: message rate limits, payload size limits, max users/session, max active sessions, idle TTL.
 - [ ] Replace panic paths with recoverable errors and server-side error events.
