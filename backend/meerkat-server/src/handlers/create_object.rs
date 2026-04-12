@@ -63,14 +63,26 @@ pub async fn handle(state: &AppState, connection_id: Uuid, payload: CreateObject
         );
 
         if let Some(tx) = state.connections.get(&connection_id) {
-            let error_json = serde_json::to_string(&ServerEvent::Error(ErrorPayload {
+            let error_json = match serde_json::to_string(&ServerEvent::Error(ErrorPayload {
                 code: "DUPLICATE_OBJECT_ID".to_string(),
                 message: format!(
                     "CreateObject rejected: object_id {} already exists in session {}",
                     payload.object_id, sid
                 ),
-            }))
-            .expect("Error serialization failed");
+            })) {
+                Ok(json) => json,
+                Err(err) => {
+                    tracing::error!(
+                        event_type = "CreateObject",
+                        session_id = %sid,
+                        user_id = %uid,
+                        object_id = %payload.object_id,
+                        error = %err,
+                        "failed to serialize duplicate-object error response"
+                    );
+                    return;
+                }
+            };
 
             if tx.try_send(error_json).is_err() {
                 tracing::warn!(
@@ -94,11 +106,23 @@ pub async fn handle(state: &AppState, connection_id: Uuid, payload: CreateObject
         "object created"
     );
 
-    let json = serde_json::to_string(&ServerEvent::ObjectCreated(ObjectCreatedPayload {
+    let json = match serde_json::to_string(&ServerEvent::ObjectCreated(ObjectCreatedPayload {
         object,
         created_by: uid,
-    }))
-    .expect("ObjectCreated serialization failed");
+    })) {
+        Ok(json) => json,
+        Err(err) => {
+            tracing::error!(
+                event_type = "ObjectCreated",
+                session_id = %sid,
+                user_id = %uid,
+                object_id = %payload.object_id,
+                error = %err,
+                "failed to serialize ObjectCreated event"
+            );
+            return;
+        }
+    };
 
     let count = broadcast(state, &sid, &json, None);
     tracing::info!(

@@ -62,16 +62,27 @@ pub async fn handle(socket :&mut WebSocket, state: &AppState, connection_id: Uui
     }
 
     // Broadcast UserLeft for old session 
-    let left_json = serde_json::to_string(&ServerEvent::UserLeft(UserLeftPayload { user_id: old_uid }))
-        .expect("UserLeft serialization failed during re-join cleanup");
-    let count = broadcast(state, &old_sid, &left_json, Some(connection_id));
-    tracing::info!(
-        connection_id = %connection_id,
-        old_session_id = %old_sid,
-        old_user_id = %old_uid,
-        recipient_count = count,
-        "broadcast UserLeft for stale session during re-join cleanup", 
-    );
+    match serde_json::to_string(&ServerEvent::UserLeft(UserLeftPayload { user_id: old_uid })) {
+        Ok(left_json) => {
+            let count = broadcast(state, &old_sid, &left_json, Some(connection_id));
+            tracing::info!(
+                connection_id = %connection_id,
+                old_session_id = %old_sid,
+                old_user_id = %old_uid,
+                recipient_count = count,
+                "broadcast UserLeft for stale session during re-join cleanup", 
+            );
+        }
+        Err(err) => {
+            tracing::error!(
+                connection_id = %connection_id,
+                old_session_id = %old_sid,
+                old_user_id = %old_uid,
+                error = %err,
+                "failed to serialize UserLeft during stale re-join cleanup"
+            );
+        }
+    }
     tracing::warn!("user has left session due to re-joining while still tracked; if this happens frequently, consider investigating client connection stability or adding more aggressive backpressure eviction")
     }
 
@@ -129,18 +140,51 @@ pub async fn handle(socket :&mut WebSocket, state: &AppState, connection_id: Uui
         "user joined session"
     );
 
-    let sync_json = serde_json::to_string(&ServerEvent::FullStateSync(FullStateSyncPayload {
+    let sync_json = match serde_json::to_string(&ServerEvent::FullStateSync(FullStateSyncPayload {
         session: (session.session_snapshot()),
-    }))
-    .expect("FullStateSync serialization failed");
-    socket.send(Message::Text(sync_json.into())).await.ok();
+    })) {
+        Ok(json) => json,
+        Err(err) => {
+            tracing::error!(
+                event_type = "FullStateSync",
+                session_id = %payload.session_id,
+                user_id = %user_id,
+                connection_id = %connection_id,
+                error = %err,
+                "failed to serialize FullStateSync"
+            );
+            return;
+        }
+    };
+    if let Err(err) = socket.send(Message::Text(sync_json.into())).await {
+        tracing::warn!(
+            event_type = "FullStateSync",
+            session_id = %payload.session_id,
+            user_id = %user_id,
+            connection_id = %connection_id,
+            error = %err,
+            "failed to send FullStateSync to joining client"
+        );
+    }
 
-    let joined_json = serde_json::to_string(&ServerEvent::UserJoined(UserJoinedPayload {
+    let joined_json = match serde_json::to_string(&ServerEvent::UserJoined(UserJoinedPayload {
         user_id,
         display_name: payload.display_name,
         color,
-    }))
-    .expect("UserJoined serialization failed");
+    })) {
+        Ok(json) => json,
+        Err(err) => {
+            tracing::error!(
+                event_type = "UserJoined",
+                session_id = %payload.session_id,
+                user_id = %user_id,
+                connection_id = %connection_id,
+                error = %err,
+                "failed to serialize UserJoined"
+            );
+            return;
+        }
+    };
 
     let count = broadcast(state, &payload.session_id, &joined_json, Some(connection_id));
     tracing::info!(

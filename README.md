@@ -83,8 +83,8 @@ Detailed implementation checklist: `CLAUDE.MD` (see **Implementation Phases**).
 - [x] **Broadcast cost scales with total connections**: fanout iterates all `connection_meta`, not just peers in the session (`backend/meerkat-server/src/handlers/helpers.rs`).
 - [x] **Re-join can leave stale membership**: a connection can overwrite `connection_meta` without full prior cleanup (`backend/meerkat-server/src/handlers/join_session.rs`).
 - [x] **Object ID clobber risk**: `CreateObject` inserts directly; duplicate IDs can overwrite state (`backend/meerkat-server/src/handlers/create_object.rs`).
-- [ ] **Runtime `expect` in hot paths**: serialization `expect(...)` can crash server process during malformed data conditions (multiple handler files + `websocket.rs`).
-- [ ] **Sessions are never reclaimed**: empty sessions are retained forever, growing memory over time (`backend/meerkat-server/src/handlers/leave_session.rs`).
+- [x] **Runtime `expect` in hot paths**: serialization `expect(...)` can crash server process during malformed data conditions (multiple handler files + `websocket.rs`).
+- [x] **Sessions are never reclaimed**: empty sessions are retained forever, growing memory over time (`backend/meerkat-server/src/handlers/leave_session.rs`).
 
 ### Blender plugin behavior to fix
 

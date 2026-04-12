@@ -117,19 +117,29 @@ pub async fn handle_connection(mut socket: WebSocket, state: AppState) {
             );
         }
 
-        let left_json = serde_json::to_string(&ServerEvent::UserLeft(UserLeftPayload {
+        match serde_json::to_string(&ServerEvent::UserLeft(UserLeftPayload {
             user_id: uid,
-        }))
-        .expect("UserLeft serialization failed");
-
-        let count = broadcast(&state, &sid, &left_json, None);
-        tracing::info!(
-            connection_id = %connection_id,
-            session_id = %sid,
-            user_id = %uid,
-            recipient_count = count,
-            "connection closed — broadcast UserLeft"
-        );
+        })) {
+            Ok(left_json) => {
+                let count = broadcast(&state, &sid, &left_json, None);
+                tracing::info!(
+                    connection_id = %connection_id,
+                    session_id = %sid,
+                    user_id = %uid,
+                    recipient_count = count,
+                    "connection closed — broadcast UserLeft"
+                );
+            }
+            Err(err) => {
+                tracing::error!(
+                    connection_id = %connection_id,
+                    session_id = %sid,
+                    user_id = %uid,
+                    error = %err,
+                    "failed to serialize UserLeft during disconnect cleanup"
+                );
+            }
+        }
     } else {
         tracing::info!(connection_id = %connection_id, "connection closed (no active session)");
     }

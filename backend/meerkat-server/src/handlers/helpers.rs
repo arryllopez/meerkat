@@ -8,10 +8,13 @@ const BACKPRESSURE_RESET_MS: u64 = 5_000;
 const BACKPRESSURE_EVICT_STRIKES: u8 = 3;
 
 pub fn now_ms() -> u64 {
-    SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .expect("system clock before unix epoch")
-        .as_millis() as u64
+    match SystemTime::now().duration_since(UNIX_EPOCH) {
+        Ok(duration) => duration.as_millis() as u64,
+        Err(err) => {
+            tracing::warn!(error = %err, "system clock before unix epoch; falling back to 0ms timestamp");
+            0
+        }
+    }
 }
 
 pub fn broadcast(state: &AppState, session_id: &str, json: &str, exclude: Option<Uuid>) -> usize {

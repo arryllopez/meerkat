@@ -52,12 +52,24 @@ pub async fn handle(state: &AppState, connection_id: Uuid, payload: UpdateNamePa
         "name updated"
     );
 
-    let json = serde_json::to_string(&ServerEvent::NameUpdated(NameUpdatedPayload {
+    let json = match serde_json::to_string(&ServerEvent::NameUpdated(NameUpdatedPayload {
         object_id: payload.object_id,
         name: payload.name,
         updated_by: uid,
-    }))
-    .expect("NameUpdated serialization failed");
+    })) {
+        Ok(json) => json,
+        Err(err) => {
+            tracing::error!(
+                event_type = "NameUpdated",
+                session_id = %sid,
+                user_id = %uid,
+                object_id = %payload.object_id,
+                error = %err,
+                "failed to serialize NameUpdated event"
+            );
+            return;
+        }
+    };
 
     let count = broadcast(state, &sid, &json, None);
     tracing::info!(

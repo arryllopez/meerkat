@@ -51,12 +51,24 @@ pub async fn handle(state: &AppState, connection_id: Uuid, payload: UpdateProper
         "properties updated"
     );
 
-    let json = serde_json::to_string(&ServerEvent::PropertiesUpdated(PropertiesUpdatedPayload {
+    let json = match serde_json::to_string(&ServerEvent::PropertiesUpdated(PropertiesUpdatedPayload {
         object_id: payload.object_id,
         properties: payload.properties,
         updated_by: uid,
-    }))
-    .expect("PropertiesUpdated serialization failed");
+    })) {
+        Ok(json) => json,
+        Err(err) => {
+            tracing::error!(
+                event_type = "PropertiesUpdated",
+                session_id = %sid,
+                user_id = %uid,
+                object_id = %payload.object_id,
+                error = %err,
+                "failed to serialize PropertiesUpdated event"
+            );
+            return;
+        }
+    };
 
     let count = broadcast(state, &sid, &json, None);
     tracing::info!(

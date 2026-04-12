@@ -47,11 +47,23 @@ pub async fn handle(state: &AppState, connection_id: Uuid, payload: DeleteObject
         "object deleted"
     );
 
-    let json = serde_json::to_string(&ServerEvent::ObjectDeleted(ObjectDeletedPayload {
+    let json = match serde_json::to_string(&ServerEvent::ObjectDeleted(ObjectDeletedPayload {
         object_id: payload.object_id,
         deleted_by: uid,
-    }))
-    .expect("ObjectDeleted serialization failed");
+    })) {
+        Ok(json) => json,
+        Err(err) => {
+            tracing::error!(
+                event_type = "ObjectDeleted",
+                session_id = %sid,
+                user_id = %uid,
+                object_id = %payload.object_id,
+                error = %err,
+                "failed to serialize ObjectDeleted event"
+            );
+            return;
+        }
+    };
 
     let count = broadcast(state, &sid, &json, None);
     tracing::info!(

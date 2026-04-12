@@ -16,11 +16,31 @@ pub async fn handle(socket: &mut WebSocket, state: &AppState, connection_id: Uui
     };
 
     if let Some(session) = state.sessions.get(&sid) {
-        let sync_json = serde_json::to_string(&ServerEvent::FullStateSync(FullStateSyncPayload {
+        let sync_json = match serde_json::to_string(&ServerEvent::FullStateSync(FullStateSyncPayload {
             session: session.session_snapshot(),
-        }))
-        .expect("FullStateSync serialization failed");
-        socket.send(Message::Text(sync_json.into())).await.ok();
+        })) {
+            Ok(json) => json,
+            Err(err) => {
+                tracing::error!(
+                    event_type = "RequestStateSync",
+                    session_id = %sid,
+                    connection_id = %connection_id,
+                    error = %err,
+                    "failed to serialize FullStateSync"
+                );
+                return;
+            }
+        };
+
+        if let Err(err) = socket.send(Message::Text(sync_json.into())).await {
+            tracing::warn!(
+                event_type = "RequestStateSync",
+                session_id = %sid,
+                connection_id = %connection_id,
+                error = %err,
+                "failed to send FullStateSync to requesting client"
+            );
+        }
 
         tracing::info!(
             event_type = "RequestStateSync",

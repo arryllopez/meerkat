@@ -51,11 +51,23 @@ pub async fn handle(state: &AppState, connection_id: Uuid, payload: SelectObject
         "selection updated"
     );
 
-    let json = serde_json::to_string(&ServerEvent::UserSelected(UserSelectedPayload {
+    let json = match serde_json::to_string(&ServerEvent::UserSelected(UserSelectedPayload {
         user_id: uid,
         object_id: payload.object_id,
-    }))
-    .expect("UserSelected serialization failed");
+    })) {
+        Ok(json) => json,
+        Err(err) => {
+            tracing::error!(
+                event_type = "UserSelected",
+                session_id = %sid,
+                user_id = %uid,
+                object_id = ?payload.object_id,
+                error = %err,
+                "failed to serialize UserSelected event"
+            );
+            return;
+        }
+    };
 
     let count = broadcast(state, &sid, &json, None);
     tracing::info!(

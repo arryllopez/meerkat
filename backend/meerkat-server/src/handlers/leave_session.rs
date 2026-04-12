@@ -51,8 +51,19 @@ pub async fn handle(state: &AppState, connection_id: Uuid) {
         "user left session"
     );
 
-    let left_json = serde_json::to_string(&ServerEvent::UserLeft(UserLeftPayload { user_id: uid }))
-        .expect("UserLeft serialization failed");
+    let left_json = match serde_json::to_string(&ServerEvent::UserLeft(UserLeftPayload { user_id: uid })) {
+        Ok(json) => json,
+        Err(err) => {
+            tracing::error!(
+                event_type = "UserLeft",
+                session_id = %sid,
+                user_id = %uid,
+                error = %err,
+                "failed to serialize UserLeft event"
+            );
+            return;
+        }
+    };
 
     let count = broadcast(state, &sid, &left_json, Some(connection_id));
     tracing::info!(
