@@ -21,6 +21,7 @@ pub async fn handle(state: &AppState, connection_id: Uuid) {
         state.session_connections.remove(&sid);
     }
 
+    let mut reclaim_session = false;
     if let Some(session) = state.sessions.get(&sid) {
         let mut users = match session.users.write(){ 
             Ok(guard) => guard, 
@@ -30,6 +31,17 @@ pub async fn handle(state: &AppState, connection_id: Uuid) {
             }
         };
         users.remove(&uid);
+        reclaim_session = users.is_empty();
+    }
+
+    // reclaim session in memory if it is empty 
+    if reclaim_session {
+        state.sessions.remove(&sid);
+        tracing::info!(
+            event_type = "SessionReclaimed",
+            session_id = %sid,
+            "reclaimed empty session after leave"
+        );
     }
 
     tracing::info!(

@@ -32,6 +32,10 @@ def _send_create_object(obj, object_type, properties=None, asset_id=None, asset_
 
 # ── Connection operators ──────────────────────────────────────────────────────
 
+def _is_last_user_in_session(state) -> bool:
+    """Best-effort check for whether this client appears to be the only connected user."""
+    return len(state.users) <= 1
+
 class MEERKAT_OT_connect(bpy.types.Operator):
     bl_idname = "meerkat.connect"
     bl_label = "Connect"
@@ -91,6 +95,46 @@ class MEERKAT_OT_disconnect(bpy.types.Operator):
     bl_idname = "meerkat.disconnect"
     bl_label = "Disconnect"
     bl_description = "Disconnect from the Meerkat session"
+
+    def invoke(self, context, event):
+        state = PluginState()
+
+        if not state.connected or not state.ws_client:
+            self.report({'WARNING'}, "Not connected")
+            return {'CANCELLED'}
+
+        if _is_last_user_in_session(state):
+            try:
+                return context.window_manager.invoke_props_dialog(
+                    self,
+                    width=420,
+                    confirm_text="Leave Session",
+                    cancel_default=True,
+                )
+            except TypeError:
+                # Fallback for Blender versions without confirm_text/cancel_default args.
+                return context.window_manager.invoke_props_dialog(self, width=420)
+
+        return self.execute(context)
+
+    def draw(self, context):
+        state = PluginState()
+        if not _is_last_user_in_session(state):
+            return
+
+        layout = self.layout
+        warning = layout.box()
+        warning.alert = True
+        warning.label(text="WARNING: You are the last user in this session.", icon='ERROR')
+        warning.label(text="Leaving now ends this in-memory session.")
+        warning.label(text="Unsaved collaborative work may be lost.")
+        warning.label(text="Press Cancel to stay connected.")
+
+        tip = layout.box()
+        tip.label(text="Tip: Save Scene before disconnecting.", icon='FILE_TICK')
+
+    def cancel(self, context):
+        self.report({'INFO'}, "Leave cancelled. Still connected.")
 
     def execute(self, context):
         state = PluginState()

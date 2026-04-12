@@ -43,6 +43,12 @@ class MEERKAT_PT_main_panel(bpy.types.Panel):
                 if user_id == str(state.user_id): 
                     row.label(text="(you)")
 
+            if len(state.users) <= 1:
+                warning = layout.box()
+                warning.alert = True
+                warning.label(text="LAST USER IN SESSION", icon='ERROR')
+                warning.label(text="Disconnecting can lose unsaved collaboration state.")
+
             layout.separator()
             layout.label(text="Add Object")
             row = layout.row(align=True)
@@ -61,5 +67,7 @@ class MEERKAT_PT_main_panel(bpy.types.Panel):
 
             layout.separator()
             layout.operator("meerkat.save_scene", icon='FILE_TICK')
-            layout.operator("meerkat.disconnect", icon='CANCEL')
+            disconnect_row = layout.row()
+            disconnect_row.alert = len(state.users) <= 1
+            disconnect_row.operator("meerkat.disconnect", icon='CANCEL')
             

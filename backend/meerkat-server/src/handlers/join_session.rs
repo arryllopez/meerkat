@@ -39,6 +39,7 @@ pub async fn handle(socket :&mut WebSocket, state: &AppState, connection_id: Uui
     }
 
     // Remove stale user presence from old session users map
+    let mut reclaim_old_session = false;
     if let Some(old_session) = state.sessions.get(&old_sid) {
         let mut users = match old_session.users.write() {
             Ok(guard) => guard,
@@ -48,6 +49,16 @@ pub async fn handle(socket :&mut WebSocket, state: &AppState, connection_id: Uui
             }
         };
         users.remove(&old_uid);
+        reclaim_old_session = users.is_empty() && old_sid != payload.session_id;
+    }
+
+    if reclaim_old_session {
+        state.sessions.remove(&old_sid);
+        tracing::info!(
+            event_type = "SessionReclaimed",
+            session_id = %old_sid,
+            "reclaimed empty stale session during re-join cleanup"
+        );
     }
 
     // Broadcast UserLeft for old session 
