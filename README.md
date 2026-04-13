@@ -91,8 +91,8 @@ Detailed implementation checklist: `CLAUDE.MD` (see **Implementation Phases**).
 - [x] **Data-loss risk on connect/sync**: plugin currently removes all scene objects during connect/full-state sync instead of only Meerkat-managed objects (`blender_plugin/operators.py`, `blender_plugin/event_handlers.py`).
 - [x] **User identity mismatch edge case**: local `user_id` inferred by matching `display_name`; duplicate names can break echo suppression (`blender_plugin/event_handlers.py`).
 - [x] **Reconnect errors are swallowed**: broad `except Exception: pass` hides failures and complicates debugging (`blender_plugin/websocket_client.py`).
-- [ ] **Blender version gate too strict**: addon currently declares Blender `5.0.0` minimum (`blender_plugin/__init__.py`).
-- [ ] **High-volume debug printing**: per-event payload printing adds overhead in active sessions (`blender_plugin/event_handlers.py`).
+- [x] **Blender version gate too strict**: addon currently declares Blender `5.0.0` minimum (`blender_plugin/__init__.py`).
+- [x] **High-volume debug printing**: per-event payload printing adds overhead in active sessions (`blender_plugin/event_handlers.py`).
 
 ### What Meerkat already covers in Blender
 
@@ -101,6 +101,11 @@ Detailed implementation checklist: `CLAUDE.MD` (see **Implementation Phases**).
 - [x] Presence features: connected users, selected-object highlights, and remote cursor overlays.
 - [x] Shared asset library placement with hierarchy support and missing-asset placeholders.
 - [x] Full state sync + reconnect foundation + save-scene workflow.
+
+More Issues: 
+Purposeful disconnect triggers retry logic 
+stuck in the reconnecting state too 
+users dont join the same session  
 
 ### High-impact additions for the ecosystem
 
@@ -120,15 +125,6 @@ Detailed implementation checklist: `CLAUDE.MD` (see **Implementation Phases**).
 - [ ] Enforce guardrails: message rate limits, payload size limits, max users/session, max active sessions, idle TTL.
 - [ ] Replace panic paths with recoverable errors and server-side error events.
 - [ ] Add production metrics: active sessions/connections, queue depth, drop counts, latency percentiles, msg/sec.
-
-
-
-### First improvement set (next branch scope)
-
-- [ ] Backend reliability hardening:
-  1) Backpressure policy with coalescing for high-rate updates.
-  2) No-drop handling for critical events (create/delete/join/leave).
-  3) Remove panic-prone `expect` paths from runtime message flow.
 
 ---
 

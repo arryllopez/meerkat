@@ -1,0 +1,11 @@
+# Ignore Python cache files
+__pycache__/
+*.py[cod]
+# Ignore Blender temp files
+*.blend1
+*.blend2
+# Ignore VSCode settings
+.vscode/
+# Ignore OS files
+.DS_Store
+Thumbs.db

@@ -76,13 +76,15 @@ class MEERKAT_OT_connect(bpy.types.Operator):
         state.connected = True
         state.evicted = False
 
-        client.send({
+        join_msg = {
             "event_type": "JoinSession",
             "payload": {
                 "session_id": room_name,
                 "display_name": display_name,
             }
-        })
+        }
+        print("[Meerkat DEBUG] Sending JoinSession:", join_msg)
+        client.send(join_msg)
 
         # Start the cursor tracker modal
         bpy.ops.meerkat.cursor_tracker('INVOKE_DEFAULT')

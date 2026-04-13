@@ -174,7 +174,16 @@ pub enum ServerEvent {
 
 /// Deserializes a raw JSON string into a ClientEvent.
 pub fn parse_client_message(raw: &str) -> Result<ClientEvent, serde_json::Error> {
-    serde_json::from_str(raw)
+    // Step 1: parse the wrapper (handles the extra timestamp/source_user_id fields)
+    let envelope: MessageEnvelope = serde_json::from_str(raw)?;
+
+    // Step 2: reconstruct a clean {event_type, payload} object for the tagged enum
+    let event_json = serde_json::json!({
+        "event_type": envelope.event_type,
+        "payload": envelope.payload,
+    });
+
+    serde_json::from_value(event_json)
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
