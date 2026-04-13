@@ -1,5 +1,5 @@
 import bpy
-from bpy.props import StringProperty
+from bpy.props import BoolProperty, StringProperty
 
 
 def _on_asset_library_changed(self, context):
@@ -24,7 +24,14 @@ class MeerkatPreferences(bpy.types.AddonPreferences):
         update=_on_asset_library_changed,
     )
 
+    verbose_logging: BoolProperty(
+        name="Verbose Logging",
+        description="Print per-event payload logs in the Blender console",
+        default=False,
+    )
+
     def draw(self, context):
         layout = self.layout
         layout.prop(self, "server_url")
         layout.prop(self, "asset_library_path")
+        layout.prop(self, "verbose_logging")

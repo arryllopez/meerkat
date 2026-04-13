@@ -96,9 +96,10 @@ class WebSocketClient:
                             self.ws = None
                             break
 
-            except Exception:
+            except Exception as e:
                 state.connected = False
                 self.ws = None
+                print(f"[Meerkat] WebSocket listen/connect error: {type(e).__name__}: {e}")
                 pass  # fall through to retry logic below
 
             # --- Retry logic ---

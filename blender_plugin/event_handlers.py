@@ -2,6 +2,7 @@
 import bpy
 import time
 import queue
+import traceback
 from .state import PluginState
 from .utils import build_transform
 
@@ -21,6 +22,22 @@ def _transforms_changed(current, cached):
             if abs(a - b) > EPSILON:
                 return True
     return False
+
+
+def _verbose_logging_enabled():
+    try:
+        addon = bpy.context.preferences.addons.get(__package__)
+        if addon is None:
+            return False
+        return bool(getattr(addon.preferences, "verbose_logging", False))
+    except Exception:
+        return False
+
+
+def _log_incoming_event(event_type, payload, verbose_logging):
+    if not verbose_logging:
+        return
+    print(f"[Meerkat] <<< {event_type}: {payload}")
 
 
 # ── Property builders: read current values from Blender objects ──────────────
@@ -565,6 +582,8 @@ def timer_function():
     if not state.connected or not state.ws_client:
         return timer
 
+    verbose_logging = _verbose_logging_enabled()
+
     while True:
         try:
             msg = state.ws_client.incoming.get_nowait()
@@ -573,7 +592,7 @@ def timer_function():
 
         event_type = msg.get("event_type")
         payload = msg.get("payload")
-        print(f"[Meerkat] <<< {event_type}: {payload}")
+        _log_incoming_event(event_type, payload, verbose_logging)
 
         handler = EVENT_HANDLERS.get(event_type)
         if handler:
@@ -581,7 +600,6 @@ def timer_function():
                 handler(payload)
             except Exception as e:
                 print(f"[Meerkat] ERROR handling {event_type}: {e}")
-                import traceback
                 traceback.print_exc()
 
     # Detect local deletions and notify server
