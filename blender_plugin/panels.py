@@ -4,11 +4,8 @@ from .state import PluginState
 
 def _connection_status_lines(state):
     lines = []
-    if state.reconnecting:
-        if state.evicted:
-            lines.append(("Disconnected by server (lag)", 'ERROR'))
-        lines.append((f"Reconnecting ({state.reconnect_attempt}/{3})...", 'TIME'))
-    elif not state.connected and state.evicted:
+    # Reconnect UI removed: no retry logic in client as of 2026-04-13.
+    if not state.connected and state.evicted:
         lines.append(("Connection closed: client fell behind", 'ERROR'))
     return lines
 
@@ -27,9 +24,8 @@ class MEERKAT_PT_main_panel(bpy.types.Panel):
         for text, icon in _connection_status_lines(state):
             layout.label(text=text, icon=icon)
 
-        if state.reconnecting:
-            pass
-        elif not state.connected:
+        # Reconnect UI removed: no retry logic in client as of 2026-04-13.
+        if not state.connected:
             layout.prop(context.scene, "meerkat_room_name")
             layout.prop(context.scene, "meerkat_display_name")
             layout.operator("meerkat.connect")

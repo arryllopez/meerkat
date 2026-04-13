@@ -90,7 +90,7 @@ class WebSocketClient:
             "event_type": message_dict.get("event_type"),
             "timestamp": int(time.time() * 1000),
             "source_user_id": state.user_id,
-            "payload": message_dict.get("payload", {})
+            "payload": message_dict.get("payload")
         }
         data = json.dumps(envelope)
         future = asyncio.run_coroutine_threadsafe(ws.send(data), self.loop)
@@ -136,4 +136,3 @@ class WebSocketClient:
         if ws is not None and not getattr(ws, "open", True):
             return getattr(ws, "close_code", None) == EVICTED_CLOSE_CODE
         return self.last_close_code == EVICTED_CLOSE_CODE
-    
