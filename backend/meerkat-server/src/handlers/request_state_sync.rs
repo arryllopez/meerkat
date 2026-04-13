@@ -7,7 +7,7 @@ use crate::{
 };
 
 pub async fn handle(socket: &mut WebSocket, state: &AppState, connection_id: Uuid) {
-    let Some((sid, _uid)) = state
+    let Some((sid, uid)) = state
         .connection_meta
         .get(&connection_id)
         .map(|r| r.value().clone())
@@ -18,6 +18,7 @@ pub async fn handle(socket: &mut WebSocket, state: &AppState, connection_id: Uui
     if let Some(session) = state.sessions.get(&sid) {
         let sync_json = match serde_json::to_string(&ServerEvent::FullStateSync(FullStateSyncPayload {
             session: session.session_snapshot(),
+            your_user_id: uid,
         })) {
             Ok(json) => json,
             Err(err) => {

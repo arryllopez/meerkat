@@ -88,8 +88,8 @@ Detailed implementation checklist: `CLAUDE.MD` (see **Implementation Phases**).
 
 ### Blender plugin behavior to fix
 
-- [ ] **Data-loss risk on connect/sync**: plugin currently removes all scene objects during connect/full-state sync instead of only Meerkat-managed objects (`blender_plugin/operators.py`, `blender_plugin/event_handlers.py`).
-- [ ] **User identity mismatch edge case**: local `user_id` inferred by matching `display_name`; duplicate names can break echo suppression (`blender_plugin/event_handlers.py`).
+- [x] **Data-loss risk on connect/sync**: plugin currently removes all scene objects during connect/full-state sync instead of only Meerkat-managed objects (`blender_plugin/operators.py`, `blender_plugin/event_handlers.py`).
+- [x] **User identity mismatch edge case**: local `user_id` inferred by matching `display_name`; duplicate names can break echo suppression (`blender_plugin/event_handlers.py`).
 - [ ] **Reconnect errors are swallowed**: broad `except Exception: pass` hides failures and complicates debugging (`blender_plugin/websocket_client.py`).
 - [ ] **Blender version gate too strict**: addon currently declares Blender `5.0.0` minimum (`blender_plugin/__init__.py`).
 - [ ] **High-volume debug printing**: per-event payload printing adds overhead in active sessions (`blender_plugin/event_handlers.py`).

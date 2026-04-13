@@ -142,6 +142,7 @@ pub async fn handle(socket :&mut WebSocket, state: &AppState, connection_id: Uui
 
     let sync_json = match serde_json::to_string(&ServerEvent::FullStateSync(FullStateSyncPayload {
         session: (session.session_snapshot()),
+        your_user_id: user_id,
     })) {
         Ok(json) => json,
         Err(err) => {

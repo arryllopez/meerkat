@@ -1,6 +1,6 @@
+use crate::types::{ObjectProperties, ObjectType, SceneObject, Session, Transform};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use crate::types::{Transform, ObjectType, ObjectProperties, SceneObject, Session};
 
 // ── Envelope ──────────────────────────────────────────────────────────────────
 
@@ -61,13 +61,13 @@ pub struct SelectObjectPayload {
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
-pub struct CursorPayload { 
-    pub position : [f64 ;3]
+pub struct CursorPayload {
+    pub position: [f64; 3],
 }
 #[derive(Serialize, Deserialize, Clone, Debug)]
-pub struct UpdatedCursor { 
-    pub position : [f64 ; 3],
-    pub user_id : Uuid,
+pub struct UpdatedCursor {
+    pub position: [f64; 3],
+    pub user_id: Uuid,
 }
 
 // ── Client event enum ─────────────────────────────────────────────────────────
@@ -92,6 +92,7 @@ pub enum ClientEvent {
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct FullStateSyncPayload {
     pub session: Session,
+    pub your_user_id: Uuid,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
@@ -181,7 +182,7 @@ pub fn parse_client_message(raw: &str) -> Result<ClientEvent, serde_json::Error>
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::types::{Transform, ObjectType};
+    use crate::types::{ObjectType, Transform};
     use uuid::Uuid;
 
     fn round_trip_client(event: &ClientEvent) {

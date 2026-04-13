@@ -174,7 +174,10 @@ def handle_full_state_sync(payload):
         for obj_id, obj_data in objects.items():
             _create_object_from_snapshot(obj_id, obj_data)
 
-        # 3. Rebuild user list and find our own user_id
+        # set user id
+        state.user_id = payload.get("your_user_id", "")
+
+        # 3. Rebuild user list using user ids from session snapshot
         state.users.clear()
         users = session.get("users", {})
         for user_id, user_data in users.items():
@@ -183,9 +186,6 @@ def handle_full_state_sync(payload):
                 "color": user_data.get("color", [200, 200, 200]),
                 "selected_object": user_data.get("selected_object"),
             }
-            # Match our display_name to learn our server-assigned user_id
-            if user_data.get("display_name") == state.display_name:
-                state.user_id = user_id
         _redraw_panels()
         print(f"[Meerkat] FullStateSync: {len(objects)} objects, {len(users)} users, my_id={state.user_id}")
 
