@@ -1,6 +1,8 @@
 # state.py — PluginState singleton
 # Singleton was chosen to ensure that only one instance of eaach class can ever
 # be possible
+from uuid import uuid4
+
 from dataclasses import dataclass, field
 from typing import Optional 
 from .websocket_client import WebSocketClient
@@ -21,7 +23,7 @@ class PluginState(metaclass=Singleton):
     connected: bool = False
     ws_client: WebSocketClient | None = None
     session_id: str = ""
-    user_id: str = ""
+    user_id: str = field(default_factory=lambda: str(uuid4()))
     display_name: str = ""
     object_map: dict = field(default_factory=dict)       # meerkat_id -> bpy.types.Object
     users: dict = field(default_factory=dict)             # user_id -> {display_name, color, selected_object}

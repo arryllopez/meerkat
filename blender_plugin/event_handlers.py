@@ -175,6 +175,8 @@ def handle_full_state_sync(payload):
     state.is_applying_remote_update = True
 
     try:
+        # set id 
+        state.user_id = payload.get("your_user_id", "")
         # 1. Delete all existing Meerkat-managed objects from the scene
         objs_to_remove = list(bpy.data.objects)
         for obj in objs_to_remove:
@@ -190,9 +192,6 @@ def handle_full_state_sync(payload):
         objects = session.get("objects", {})
         for obj_id, obj_data in objects.items():
             _create_object_from_snapshot(obj_id, obj_data)
-
-        # set user id
-        state.user_id = payload.get("your_user_id", "")
 
         # 3. Rebuild user list using user ids from session snapshot
         state.users.clear()

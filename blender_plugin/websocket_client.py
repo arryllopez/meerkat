@@ -8,10 +8,10 @@ import threading
 import asyncio
 import json
 import queue
+import time
 import websockets
 
 
-RECONNECT_DELAYS = [3, 9, 27]  # powers of 3, ~39s total
 EVICTED_CLOSE_CODE = 4008
 
 
@@ -50,104 +50,89 @@ class WebSocketClient:
     async def _listen(self):
         from .state import PluginState
         state = PluginState()
-        retry_index = 0
-        is_first_connect = True
 
-        while self.running:
-            try:
-                async with websockets.connect(self.url) as ws:
-                    self.ws = ws
-                    self.last_close_code = None
-                    self.last_close_reason = ""
-                    self.connected_event.set()
-                    state.connected = True
-                    state.evicted = False
-                    state.reconnecting = False
-                    state.reconnect_attempt = 0
-                    retry_index = 0  # reset on successful connection
-
-                    # re-send JoinSession only on reconnect (not first connect)
-                    if not is_first_connect and self.session_id and self.display_name:
-                        join_msg = json.dumps({
-                            "event_type": "JoinSession",
-                            "payload": {
-                                "session_id": self.session_id,
-                                "display_name": self.display_name,
-                            }
-                        })
-                        await ws.send(join_msg)
-
-                    is_first_connect = False
-
-                    while self.running:
-                        try:
-                            raw = await asyncio.wait_for(ws.recv(), timeout=1.0)
-                            msg = json.loads(raw)
-                            self.incoming.put(msg)
-                        except asyncio.TimeoutError:
-                            continue
-                        except websockets.ConnectionClosed as e:
-                            self.last_close_code = e.code
-                            self.last_close_reason = e.reason or ""
-                            state.evicted = (e.code == EVICTED_CLOSE_CODE)
-                            state.connected = False
-                            state.reconnecting = True
-                            state.reconnect_attempt = 0
-                            self.ws = None
-                            break
-
-            except Exception as e:
-                state.connected = False
-                self.ws = None
-                print(f"[Meerkat] WebSocket listen/connect error: {type(e).__name__}: {e}")
-                pass  # fall through to retry logic below
-
-            # --- Retry logic ---
-            if not self.running or state.intentional_disconnect:
-                break
-
-            if retry_index >= len(RECONNECT_DELAYS):
-                print("[Meerkat] Reconnect failed after all attempts.")
+        try:
+            async with websockets.connect(self.url) as ws:
+                self.ws = ws
+                self.connected_event.set()
+                state.connected = True
+                state.evicted = False
                 state.reconnecting = False
                 state.reconnect_attempt = 0
-                state.connected = False
-                break
 
-            delay = RECONNECT_DELAYS[retry_index]
-            retry_index += 1
-            state.reconnecting = True
-            state.reconnect_attempt = retry_index
-            print(f"[Meerkat] Connection lost. Reconnecting ({retry_index}/{len(RECONNECT_DELAYS)}) in {delay}s...")
-
-            try:
-                await asyncio.sleep(delay)
-            except asyncio.CancelledError:
-                break
-
-            if not self.running or state.intentional_disconnect:
-                break
-
-            # loop back to the top -> websockets.connect() again
+                while self.running:
+                    try:
+                        raw = await asyncio.wait_for(ws.recv(), timeout=1.0)
+                        msg = json.loads(raw)
+                        self.incoming.put(msg)
+                    except asyncio.TimeoutError:
+                        continue
+                    except websockets.ConnectionClosed as e:
+                        self.last_close_code = e.code
+                        self.last_close_reason = e.reason or ""
+                        state.evicted = (e.code == EVICTED_CLOSE_CODE)
+                        state.connected = False
+                        break
+        except Exception as e:
+            state.connected = False
+            print(f"[Meerkat] WebSocket error: {type(e).__name__}: {e}")
 
         self.ws = None
         self.running = False
 
     def send(self, message_dict):
+        from .state import PluginState
+        state = PluginState()
         ws = self.ws
-        if ws and self.loop and self.running and not ws.closed:
-            data = json.dumps(message_dict)
-            asyncio.run_coroutine_threadsafe(ws.send(data), self.loop)
+        if not ws or not self.loop or not self.running:
+            return
+        envelope = {
+            "event_type": message_dict.get("event_type"),
+            "timestamp": int(time.time() * 1000),
+            "source_user_id": state.user_id,
+            "payload": message_dict.get("payload")
+        }
+        data = json.dumps(envelope)
+        future = asyncio.run_coroutine_threadsafe(ws.send(data), self.loop)
+        future.add_done_callback(self._on_send_done)
+
+
+    def _on_send_done(self, future):    
+        try:
+            future.result()
+        except Exception as e:  
+            print(f"[Meerkat] Error sending message: {type(e).__name__}: {e}")
 
     def disconnect(self):
+        from .state import PluginState
+        state = PluginState()
+        state.intentional_disconnect = True
         self.running = False
         if self.ws and self.loop:
-            asyncio.run_coroutine_threadsafe(self.ws.close(), self.loop)
+            future = asyncio.run_coroutine_threadsafe(self.ws.close(), self.loop)
+            future.add_done_callback(self._on_disconnect_done)
+        else:
+            self._clear_connection_state()
+
+    def _on_disconnect_done(self, future):
+        try:
+            future.result()
+        except Exception as e:
+            print(f"[Meerkat] Error closing WebSocket: {type(e).__name__}: {e}")
+        self._clear_connection_state()
+
+    def _clear_connection_state(self):
+        from .state import PluginState
+        state = PluginState()
         self.ws = None
         self.last_close_code = None
         self.last_close_reason = ""
+        state.reconnecting = False
+        state.reconnect_attempt = 0
 
     def is_evicted(self):
         ws = self.ws
-        if ws is not None and ws.closed:
-            return ws.close_code == EVICTED_CLOSE_CODE
+        # websockets 16.x: use ws.open to check if connection is open
+        if ws is not None and not getattr(ws, "open", True):
+            return getattr(ws, "close_code", None) == EVICTED_CLOSE_CODE
         return self.last_close_code == EVICTED_CLOSE_CODE

@@ -41,12 +41,17 @@ pub async fn handle_connection(mut socket: WebSocket, state: AppState) {
                 match msg {
                     Some(Ok(Message::Text(t))) => {
                         let text = t.to_string();
+                        tracing::info!(connection_id = %connection_id, raw_message = %text, "received client message");
                         match parse_client_message(&text) {
-                            Ok(event) => dispatch(&mut socket, &state, connection_id, event).await,
+                            Ok(event) => {
+                                tracing::info!(connection_id = %connection_id, event_type = ?event, "parsed client event");
+                                dispatch(&mut socket, &state, connection_id, event).await
+                            },
                             Err(e) => {
                                 tracing::warn!(
                                     connection_id = %connection_id,
                                     error = %e,
+                                    raw_message = %text,
                                     "failed to parse client message"
                                 );
                             }
@@ -57,7 +62,7 @@ pub async fn handle_connection(mut socket: WebSocket, state: AppState) {
                     Some(Err(_)) => break,
                     None => { 
                         // This none case means the server cant read client messages 
-                        break; 
+                        break;
                     }
                 }
             }
