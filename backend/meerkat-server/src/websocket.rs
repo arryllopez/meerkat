@@ -6,6 +6,7 @@ use axum::{
     response::Response,
 };
 use tokio::sync::mpsc;
+use tokio::select; 
 use uuid::Uuid;
 
 
@@ -14,16 +15,22 @@ use crate::{
         self,
         helpers::broadcast,
     },
+
     messages::{ClientEvent, ServerEvent, UserLeftPayload, parse_client_message},
     types::AppState,
 };
 
 const EVICTED_CLOSE_CODE: CloseCode = 4008;
 
-// ── HTTP upgrade entry-point ──────────────────────────────────────────────────
+// tcp_socket_ugprade upgrades a TCP connection to a Websocket 
 
-pub async fn handler(ws: WebSocketUpgrade, State(state): State<AppState>) -> Response {
-    ws.on_upgrade(|socket| handle_connection(socket, state))
+pub async fn tcp_socket_upgrade(ws: WebSocketUpgrade, State(state): State<AppState>) -> Response {
+    ws.on_failed_upgrade(|error| {
+        tracing::error!(error = %error, "WebSocket upgrade failed");
+    })
+    .on_upgrade(|socket| async move {
+        handle_connection(socket, state).await; 
+    })
 }
 
 // ── Per-connection event loop ─────────────────────────────────────────────────
@@ -31,18 +38,18 @@ pub async fn handler(ws: WebSocketUpgrade, State(state): State<AppState>) -> Res
 pub async fn handle_connection(mut socket: WebSocket, state: AppState) {
     let connection_id = Uuid::new_v4();
     let (tx, mut rx) = mpsc::channel::<String>(64);
-    state.connections.insert(connection_id, tx);
+    state.connections.insert(connection_id, tx); 
 
     tracing::info!(connection_id = %connection_id, "connection opened");
 
     loop {
-        tokio::select! {
+        select! {
+            // Branch 1, client sends something
             msg = socket.recv() => {
                 match msg {
                     Some(Ok(Message::Text(t))) => {
-                        let text = t.to_string();
-                        tracing::info!(connection_id = %connection_id, raw_message = %text, "received client message");
-                        match parse_client_message(&text) {
+                        tracing::info!(connection_id = %connection_id, raw_message = %t, "received client message");
+                        match parse_client_message(&t) {
                             Ok(event) => {
                                 tracing::info!(connection_id = %connection_id, event_type = ?event, "parsed client event");
                                 dispatch(&mut socket, &state, connection_id, event).await
@@ -51,13 +58,28 @@ pub async fn handle_connection(mut socket: WebSocket, state: AppState) {
                                 tracing::warn!(
                                     connection_id = %connection_id,
                                     error = %e,
-                                    raw_message = %text,
+                                    raw_message = %t,
                                     "failed to parse client message"
                                 );
                             }
                         }
                     }
-                    Some(Ok(Message::Close(_))) => break,
+                    Some(Ok(Message::Close(Some(frame)))) => {
+                        tracing::info!(
+                            connection_id = %connection_id,
+                            code = %frame.code,
+                            reason = %frame.reason,
+                            "client sent close frame"
+                        );
+                        break;
+                    }
+                    Some(Ok(Message::Close(None))) => {
+                        tracing::info!(
+                            connection_id = %connection_id,
+                            "client sent close frame with no payload"
+                        );
+                        break;
+                    }
                     Some(Ok(_)) => continue,
                     Some(Err(_)) => break,
                     None => { 
@@ -66,6 +88,7 @@ pub async fn handle_connection(mut socket: WebSocket, state: AppState) {
                     }
                 }
             }
+            // Branch 2 server sends to client 
             msg = rx.recv() => {
                 match msg { 
                     Some (text) => {
