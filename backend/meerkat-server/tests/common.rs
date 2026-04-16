@@ -12,10 +12,12 @@ use tokio_tungstenite::{
 use uuid::Uuid;
 
 use meerkat_server::{
-    messages::{ClientEvent, CreateObjectPayload, ServerEvent},
+    messages::{ClientEvent, CreateObjectPayload, CreateSessionPayload, JoinSessionPayload, ServerEvent},
     types::{AppState, ObjectType, Transform},
-    websocket::handler,
+    websocket::tcp_socket_upgrade,
 };
+
+pub const TEST_PASSWORD: &str = "testpassword123";
 
 pub type WsStream = WebSocketStream<MaybeTlsStream<TcpStream>>;
 
@@ -31,7 +33,7 @@ pub async fn start_test_server_with_state() -> (String, AppState) {
         connection_backpressure: Arc::new(DashMap::new()),
         session_connections: Arc::new(DashMap::new()),
     };
-    let app = Router::new().route("/ws", any(handler)).with_state(state.clone());
+    let app = Router::new().route("/ws", any(tcp_socket_upgrade)).with_state(state.clone());
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let port = listener.local_addr().unwrap().port();
     tokio::spawn(async move {
@@ -41,7 +43,16 @@ pub async fn start_test_server_with_state() -> (String, AppState) {
 }
 
 pub async fn send(ws: &mut WsStream, event: ClientEvent) {
-    let json = serde_json::to_string(&event).expect("ClientEvent serialization failed");
+    // Server expects MessageEnvelope format: {event_type, timestamp, source_user_id, payload}
+    // Serialize the ClientEvent to get {event_type, payload}, then inject envelope fields.
+    let tagged: serde_json::Value = serde_json::to_value(&event).expect("ClientEvent serialization failed");
+    let envelope = serde_json::json!({
+        "event_type": tagged["event_type"],
+        "payload": tagged["payload"],
+        "timestamp": 0u64,
+        "source_user_id": Uuid::new_v4().to_string(),
+    });
+    let json = serde_json::to_string(&envelope).expect("envelope serialization failed");
     ws.send(Message::Text(json.into())).await.expect("send failed");
 }
 
@@ -97,4 +108,26 @@ pub fn extract_object_id(event: ServerEvent) -> Uuid {
         ServerEvent::ObjectCreated(p) => p.object.object_id,
         other => panic!("expected ObjectCreated, got {:?}", other),
     }
+}
+
+// Create a new session (first client). Returns the FullStateSync payload.
+pub async fn create_session(ws: &mut WsStream, session_id: &str, display_name: &str) {
+    send(ws, ClientEvent::CreateSession(CreateSessionPayload {
+        session_id: session_id.to_string(),
+        display_name: display_name.to_string(),
+        password: TEST_PASSWORD.to_string(),
+    })).await;
+    let msg = recv(ws).await;
+    assert!(matches!(msg, ServerEvent::FullStateSync(_)), "expected FullStateSync after CreateSession, got {:?}", msg);
+}
+
+/// Join an existing session (subsequent clients). Returns FullStateSync.
+pub async fn join_session(ws: &mut WsStream, session_id: &str, display_name: &str) {
+    send(ws, ClientEvent::JoinSession(JoinSessionPayload {
+        session_id: session_id.to_string(),
+        display_name: display_name.to_string(),
+        password: TEST_PASSWORD.to_string(),
+    })).await;
+    let msg = recv(ws).await;
+    assert!(matches!(msg, ServerEvent::FullStateSync(_)), "expected FullStateSync after JoinSession, got {:?}", msg);
 }

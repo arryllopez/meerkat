@@ -2,7 +2,7 @@ use tokio::time::{timeout, Duration};
 use tokio_tungstenite::{connect_async, tungstenite::Message};
 use futures_util::StreamExt;
 
-use meerkat_server::messages::{ClientEvent, JoinSessionPayload, ServerEvent};
+use meerkat_server::messages::{ClientEvent, CreateSessionPayload, ServerEvent};
 
 mod common;
 
@@ -14,9 +14,10 @@ async fn test_evicted_client_receives_close_code_4008() {
     let session_id = "evict-close";
 
     let (mut ws, _) = connect_async(&url).await.expect("connect failed");
-    send(&mut ws, ClientEvent::JoinSession(JoinSessionPayload {
+    send(&mut ws, ClientEvent::CreateSession(CreateSessionPayload {
         session_id: session_id.to_string(),
         display_name: "Alice".to_string(),
+        password: "somepassword".to_string(),
     })).await;
     let sync = recv(&mut ws).await;
     assert!(matches!(sync, ServerEvent::FullStateSync(_)));

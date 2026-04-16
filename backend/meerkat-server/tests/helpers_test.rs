@@ -23,6 +23,7 @@ fn broadcast_drops_when_connection_queue_is_full() {
             objects: RwLock::new(HashMap::new()),
             users: RwLock::new(HashMap::new()),
             session_id: session_id.clone(),
+            password_hash: "not_a_real_hash".to_string(),
         }),
     );
 
@@ -78,6 +79,7 @@ fn broadcast_evicts_after_three_full_strikes() {
             objects: RwLock::new(HashMap::new()),
             users: RwLock::new(HashMap::new()),
             session_id: session_id.clone(),
+            password_hash: "not_a_real_hash".to_string(),
         }),
     );
     let connections = Arc::new(DashMap::new());

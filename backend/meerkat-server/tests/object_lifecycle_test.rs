@@ -3,7 +3,7 @@ use uuid::Uuid;
 
 use meerkat_server::{
     messages::{
-        ClientEvent, CreateObjectPayload, DeleteObjectPayload, JoinSessionPayload, ServerEvent,
+        ClientEvent, CreateObjectPayload, CreateSessionPayload, DeleteObjectPayload, JoinSessionPayload, ServerEvent,
     },
     types::{ObjectType, Transform},
 };
@@ -24,9 +24,10 @@ async fn test_phase_1_full_flow() {
 
     // ── Step 1: Client A joins ────────────────────────────────────────────────
     let (mut ws_a, _) = connect_async(&url).await.expect("A: connect failed");
-    send(&mut ws_a, ClientEvent::JoinSession(JoinSessionPayload {
+    send(&mut ws_a, ClientEvent::CreateSession(CreateSessionPayload {
         session_id: "test-01".to_string(),
         display_name: "Alice".to_string(),
+        password: "somepassword".to_string(),
     })).await;
 
     let msg = recv(&mut ws_a).await;
@@ -40,6 +41,7 @@ async fn test_phase_1_full_flow() {
     send(&mut ws_b, ClientEvent::JoinSession(JoinSessionPayload {
         session_id: "test-01".to_string(),
         display_name: "Bob".to_string(),
+        password: "somepassword".to_string(),
     })).await;
 
     let msg_b = recv(&mut ws_b).await;

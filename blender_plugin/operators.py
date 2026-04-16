@@ -36,10 +36,35 @@ def _is_last_user_in_session(state) -> bool:
     """Best-effort check for whether this client appears to be the only connected user."""
     return len(state.users) <= 1
 
-class MEERKAT_OT_connect(bpy.types.Operator):
-    bl_idname = "meerkat.connect"
-    bl_label = "Connect"
-    bl_description = "Connect to Meerkat server and join a session"
+class MEERKAT_OT_create_session(bpy.types.Operator):
+    bl_idname = "meerkat.create_session"
+    bl_label = "Create Session"
+    bl_description = "Create a new password-protected Meerkat session"
+
+    def invoke(self, context, event):
+        if bpy.data.objects:
+            try:
+                return context.window_manager.invoke_props_dialog(
+                    self,
+                    width=420,
+                    confirm_text="Create Session",
+                    cancel_default=True,
+                )
+            except TypeError:
+                return context.window_manager.invoke_props_dialog(self, width=420)
+        return self.execute(context)
+
+    def draw(self, context):
+        layout = self.layout
+        warning = layout.box()
+        warning.alert = True
+        warning.label(text="WARNING: Connecting will clear all objects in the scene.", icon='ERROR')
+        warning.label(text="Unsaved work will be lost.")
+        tip = layout.box()
+        tip.label(text="Tip: Save your .blend file before connecting.", icon='FILE_TICK')
+
+    def cancel(self, context):
+        self.report({'INFO'}, "Create session cancelled.")
 
     def execute(self, context):
         state = PluginState()
@@ -48,24 +73,21 @@ class MEERKAT_OT_connect(bpy.types.Operator):
             self.report({'WARNING'}, "Already connected")
             return {'CANCELLED'}
 
-        # Read server URL from addon preferences
         prefs = context.preferences.addons[__package__].preferences
         url = prefs.server_url
 
-        # Read room name and display name from scene properties
         scene = context.scene
         room_name = scene.meerkat_room_name
         display_name = scene.meerkat_display_name
+        password = scene.meerkat_session_password
 
-        if not room_name or not display_name:
-            self.report({'ERROR'}, "Room name and display name are required")
+        if not room_name or not display_name or not password:
+            self.report({'ERROR'}, "Room name, display name, and password are required")
             return {'CANCELLED'}
 
-        # Clear the scene — Meerkat owns the whole scene, start fresh
         for obj in list(bpy.data.objects):
             bpy.data.objects.remove(obj, do_unlink=True)
 
-        # Create client, connect, and send JoinSession
         state.intentional_disconnect = False
         client = WebSocketClient(url)
         client.connect(session_id=room_name, display_name=display_name)
@@ -76,20 +98,95 @@ class MEERKAT_OT_connect(bpy.types.Operator):
         state.connected = True
         state.evicted = False
 
-        join_msg = {
+        client.send({
+            "event_type": "CreateSession",
+            "payload": {
+                "session_id": room_name,
+                "display_name": display_name,
+                "password": password,
+            }
+        })
+
+        bpy.ops.meerkat.cursor_tracker('INVOKE_DEFAULT')
+
+        self.report({'INFO'}, f"Created session {room_name}")
+        return {'FINISHED'}
+
+
+class MEERKAT_OT_connect(bpy.types.Operator):
+    bl_idname = "meerkat.connect"
+    bl_label = "Join Session"
+    bl_description = "Join an existing Meerkat session"
+
+    def invoke(self, context, event):
+        if bpy.data.objects:
+            try:
+                return context.window_manager.invoke_props_dialog(
+                    self,
+                    width=420,
+                    confirm_text="Join Session",
+                    cancel_default=True,
+                )
+            except TypeError:
+                return context.window_manager.invoke_props_dialog(self, width=420)
+        return self.execute(context)
+
+    def draw(self, context):
+        layout = self.layout
+        warning = layout.box()
+        warning.alert = True
+        warning.label(text="WARNING: Connecting will clear all objects in the scene.", icon='ERROR')
+        warning.label(text="Unsaved work will be lost.")
+        tip = layout.box()
+        tip.label(text="Tip: Save your .blend file before connecting.", icon='FILE_TICK')
+
+    def cancel(self, context):
+        self.report({'INFO'}, "Join session cancelled.")
+
+    def execute(self, context):
+        state = PluginState()
+
+        if state.connected:
+            self.report({'WARNING'}, "Already connected")
+            return {'CANCELLED'}
+
+        prefs = context.preferences.addons[__package__].preferences
+        url = prefs.server_url
+
+        scene = context.scene
+        room_name = scene.meerkat_room_name
+        display_name = scene.meerkat_display_name
+        password = scene.meerkat_session_password
+
+        if not room_name or not display_name or not password:
+            self.report({'ERROR'}, "Room name, display name, and password are required")
+            return {'CANCELLED'}
+
+        for obj in list(bpy.data.objects):
+            bpy.data.objects.remove(obj, do_unlink=True)
+
+        state.intentional_disconnect = False
+        client = WebSocketClient(url)
+        client.connect(session_id=room_name, display_name=display_name)
+
+        state.ws_client = client
+        state.session_id = room_name
+        state.display_name = display_name
+        state.connected = True
+        state.evicted = False
+
+        client.send({
             "event_type": "JoinSession",
             "payload": {
                 "session_id": room_name,
                 "display_name": display_name,
+                "password": password,
             }
-        }
-        print("[Meerkat DEBUG] Sending JoinSession:", join_msg)
-        client.send(join_msg)
+        })
 
-        # Start the cursor tracker modal
         bpy.ops.meerkat.cursor_tracker('INVOKE_DEFAULT')
 
-        self.report({'INFO'}, f"Connected to {room_name}")
+        self.report({'INFO'}, f"Joined session {room_name}")
         return {'FINISHED'}
 
 

@@ -3,7 +3,7 @@ use uuid::Uuid;
 
 use meerkat_server::{
     messages::{
-        ClientEvent, JoinSessionPayload, SelectObjectPayload, ServerEvent, UpdateNamePayload,
+        ClientEvent, CreateSessionPayload, JoinSessionPayload, SelectObjectPayload, ServerEvent, UpdateNamePayload,
         UpdatePropertiesPayload, UpdateTransformPayload,
     },
     types::{ObjectProperties, PointLightProperties, Transform},
@@ -20,9 +20,10 @@ async fn test_update_handlers() {
     let url = start_test_server().await;
 
     let (mut ws_a, _) = connect_async(&url).await.unwrap();
-    send(&mut ws_a, ClientEvent::JoinSession(JoinSessionPayload {
+    send(&mut ws_a, ClientEvent::CreateSession(CreateSessionPayload {
         session_id: "update-test".to_string(),
         display_name: "Alice".to_string(),
+        password: "somepassword".to_string(),
     })).await;
     recv(&mut ws_a).await; // FullStateSync
 
@@ -30,6 +31,7 @@ async fn test_update_handlers() {
     send(&mut ws_b, ClientEvent::JoinSession(JoinSessionPayload {
         session_id: "update-test".to_string(),
         display_name: "Bob".to_string(),
+        password: "somepassword".to_string(),
     })).await;
     recv(&mut ws_b).await; // FullStateSync
     recv(&mut ws_a).await; // UserJoined(Bob)

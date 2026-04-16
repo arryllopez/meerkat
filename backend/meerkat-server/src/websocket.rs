@@ -183,6 +183,7 @@ async fn dispatch(
 ) {
     match event {
         ClientEvent::JoinSession(p)      => handlers::join_session::handle(socket, state, connection_id, p).await,
+        ClientEvent::CreateSession(p)    => handlers::create_session::handle(socket, state, connection_id, p).await,
         ClientEvent::LeaveSession        => handlers::leave_session::handle(state, connection_id).await,
         ClientEvent::CreateObject(p)     => handlers::create_object::handle(state, connection_id, p).await,
         ClientEvent::DeleteObject(p)     => handlers::delete_object::handle(state, connection_id, p).await,

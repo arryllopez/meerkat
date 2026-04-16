@@ -1,7 +1,7 @@
 use tokio_tungstenite::connect_async;
 use tokio::time::{timeout, Duration};
 
-use meerkat_server::messages::{ClientEvent, JoinSessionPayload, ServerEvent};
+use meerkat_server::messages::{ClientEvent, JoinSessionPayload, ServerEvent, CreateSessionPayload};
 
 mod common;
 
@@ -14,9 +14,10 @@ async fn test_explicit_leave_session() {
     let url = start_test_server().await;
 
     let (mut ws_a, _) = connect_async(&url).await.unwrap();
-    send(&mut ws_a, ClientEvent::JoinSession(JoinSessionPayload {
+    send(&mut ws_a, ClientEvent::CreateSession(CreateSessionPayload {
         session_id: "leave-test".to_string(),
         display_name: "Alice".to_string(),
+        password: "somepassword".to_string(),
     })).await;
     recv(&mut ws_a).await; // FullStateSync
 
@@ -24,6 +25,7 @@ async fn test_explicit_leave_session() {
     send(&mut ws_b, ClientEvent::JoinSession(JoinSessionPayload {
         session_id: "leave-test".to_string(),
         display_name: "Bob".to_string(),
+        password: "somepassword".to_string(),
     })).await;
     recv(&mut ws_b).await; // FullStateSync
     recv(&mut ws_a).await; // UserJoined(Bob)
@@ -38,9 +40,10 @@ async fn test_explicit_leave_session() {
     );
 
     // A's connection is still open — it should be able to rejoin a new session.
-    send(&mut ws_a, ClientEvent::JoinSession(JoinSessionPayload {
+    send(&mut ws_a, ClientEvent::CreateSession(CreateSessionPayload {
         session_id: "leave-test-2".to_string(),
         display_name: "Alice".to_string(),
+        password: "somepassword".to_string(),
     })).await;
     let sync = recv(&mut ws_a).await;
     assert!(
@@ -55,9 +58,10 @@ async fn test_reclaim_session_on_last_user_leave() {
     let session_id = "reclaim-on-last-leave";
 
     let (mut ws, _) = connect_async(&url).await.unwrap();
-    send(&mut ws, ClientEvent::JoinSession(JoinSessionPayload {
+    send(&mut ws, ClientEvent::CreateSession(CreateSessionPayload {
         session_id: session_id.to_string(),
         display_name: "Alice".to_string(),
+        password: "somepassword".to_string(),
     })).await;
 
     let sync = recv(&mut ws).await;

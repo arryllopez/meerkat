@@ -14,9 +14,9 @@ use tokio_tungstenite::{
 use uuid::Uuid;
 
 use meerkat_server::{
-    messages::{ClientEvent, CreateObjectPayload, JoinSessionPayload, ServerEvent},
+    messages::{ClientEvent, CreateObjectPayload, CreateSessionPayload, JoinSessionPayload, ServerEvent},
     types::{AppState, ObjectType, Transform},
-    websocket::handler,
+    websocket::tcp_socket_upgrade,
 };
 
 type WsStream = WebSocketStream<MaybeTlsStream<TcpStream>>;
@@ -30,7 +30,7 @@ async fn start_test_server() -> String {
         session_connections: Arc::new(DashMap::new()),
     };
 
-    let app = Router::new().route("/ws", any(handler)).with_state(state);
+    let app = Router::new().route("/ws", any(tcp_socket_upgrade)).with_state(state);
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let port = listener.local_addr().unwrap().port();
 
@@ -42,7 +42,14 @@ async fn start_test_server() -> String {
 }
 
 async fn send(ws: &mut WsStream, event: ClientEvent) {
-    let json = serde_json::to_string(&event).expect("ClientEvent serialization failed");
+    let tagged: serde_json::Value = serde_json::to_value(&event).expect("ClientEvent serialization failed");
+    let envelope = serde_json::json!({
+        "event_type": tagged["event_type"],
+        "payload": tagged["payload"],
+        "timestamp": 0u64,
+        "source_user_id": Uuid::new_v4().to_string(),
+    });
+    let json = serde_json::to_string(&envelope).expect("envelope serialization failed");
     ws.send(Message::Text(json.into())).await.expect("send failed");
 }
 
@@ -92,9 +99,10 @@ async fn test_rejoin_same_connection_cleans_old_membership() {
     let (mut ws_a, _) = connect_async(&url).await.expect("A: connect failed");
     send(
         &mut ws_a,
-        ClientEvent::JoinSession(JoinSessionPayload {
+        ClientEvent::CreateSession(CreateSessionPayload {
             session_id: "room-1".to_string(),
             display_name: "Alice".to_string(),
+            password: "somepassword".to_string(),
         }),
     )
     .await;
@@ -119,6 +127,7 @@ async fn test_rejoin_same_connection_cleans_old_membership() {
         ClientEvent::JoinSession(JoinSessionPayload {
             session_id: "room-1".to_string(),
             display_name: "Bob".to_string(),
+            password: "somepassword".to_string(),
         }),
     )
     .await;
@@ -135,12 +144,13 @@ async fn test_rejoin_same_connection_cleans_old_membership() {
         "A: expected UserJoined when Bob joined"
     );
 
-    // A re-joins into room-2 on the SAME socket.
+    // A creates room-2 on the SAME socket — cleanup_stale_membership removes her from room-1.
     send(
         &mut ws_a,
-        ClientEvent::JoinSession(JoinSessionPayload {
+        ClientEvent::CreateSession(CreateSessionPayload {
             session_id: "room-2".to_string(),
             display_name: "Alice".to_string(),
+            password: "somepassword".to_string(),
         }),
     )
     .await;
