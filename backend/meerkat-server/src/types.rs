@@ -1,8 +1,7 @@
 use dashmap::DashMap;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
-use std::sync::Arc;
-use std::sync::RwLock;
+use std::sync::{Arc, RwLock};
 use tokio::sync::mpsc;
 use uuid::Uuid;
 
@@ -42,6 +41,7 @@ pub struct SessionHandle {
     pub objects: RwLock<HashMap<Uuid, SceneObject>>,
     pub users: RwLock<HashMap<Uuid, User>>,
     pub session_id: String,
+    pub password_hash: String, 
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]

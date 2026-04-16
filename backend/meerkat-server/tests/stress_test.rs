@@ -26,9 +26,9 @@ use tokio_tungstenite::{
 use uuid::Uuid;
 
 use meerkat_server::{
-    messages::{ClientEvent, CreateObjectPayload, JoinSessionPayload, ServerEvent},
+    messages::{ClientEvent, CreateObjectPayload, CreateSessionPayload, JoinSessionPayload, ServerEvent},
     types::{AppState, ObjectType, Transform},
-    websocket::handler,
+    websocket::tcp_socket_upgrade,
 };
 
 type WsStream = WebSocketStream<MaybeTlsStream<TcpStream>>;
@@ -43,26 +43,49 @@ async fn start_server() -> String {
         connection_backpressure: Arc::new(DashMap::new()),
         session_connections: Arc::new(DashMap::new()),
     };
-    let app = Router::new().route("/ws", any(handler)).with_state(state);
+    let app = Router::new().route("/ws", any(tcp_socket_upgrade)).with_state(state);
     let listener = tokio::net::TcpListener::bind("127.0.0.1:0").await.unwrap();
     let port = listener.local_addr().unwrap().port();
     tokio::spawn(async move { axum::serve(listener, app).await.unwrap() });
     format!("ws://127.0.0.1:{}/ws", port)
 }
 
-/// Connect + JoinSession + wait for FullStateSync, then return the stream.
-async fn connect_and_join(url: &str, session_id: &str, display_name: &str) -> WsStream {
+/// Create a new session + wait for FullStateSync, then return the stream.
+async fn create_and_join(url: &str, session_id: &str, display_name: &str) -> WsStream {
+    let (mut ws, _) = connect_async(url).await.expect("connect failed");
+    let json = serde_json::to_string(&ClientEvent::CreateSession(CreateSessionPayload {
+        session_id: session_id.to_string(),
+        display_name: display_name.to_string(),
+        password: "somepassword".to_string(),
+    }))
+    .unwrap();
+    ws.send(Message::Text(json.into())).await.unwrap();
+    loop {
+        let msg = timeout(Duration::from_secs(10), ws.next())
+            .await
+            .expect("create_and_join: timed out waiting for FullStateSync");
+        if let Some(Ok(Message::Text(t))) = msg
+            && let Ok(ServerEvent::FullStateSync(_)) = serde_json::from_str::<ServerEvent>(&t)
+            {
+                break;
+            }
+        }
+    ws
+}
+
+/// Join an existing session + wait for FullStateSync, then return the stream.
+async fn join_existing(url: &str, session_id: &str, display_name: &str) -> WsStream {
     let (mut ws, _) = connect_async(url).await.expect("connect failed");
     let json = serde_json::to_string(&ClientEvent::JoinSession(JoinSessionPayload {
         session_id: session_id.to_string(),
         display_name: display_name.to_string(),
+        password: "somepassword".to_string(),
     }))
     .unwrap();
     ws.send(Message::Text(json.into())).await.unwrap();
-    // Consume frames until we see FullStateSync.
     loop {
-        if let Some(Ok(Message::Text(t))) = ws.next().await 
-            && let Ok(ServerEvent::FullStateSync(_)) = serde_json::from_str::<ServerEvent>(&t) 
+        if let Some(Ok(Message::Text(t))) = ws.next().await
+            && let Ok(ServerEvent::FullStateSync(_)) = serde_json::from_str::<ServerEvent>(&t)
             {
                 break;
             }
@@ -71,7 +94,14 @@ async fn connect_and_join(url: &str, session_id: &str, display_name: &str) -> Ws
 }
 
 async fn send_ev(ws: &mut WsStream, event: ClientEvent) {
-    let json = serde_json::to_string(&event).unwrap();
+    let tagged: serde_json::Value = serde_json::to_value(&event).unwrap();
+    let envelope = serde_json::json!({
+        "event_type": tagged["event_type"],
+        "payload": tagged["payload"],
+        "timestamp": 0u64,
+        "source_user_id": Uuid::new_v4().to_string(),
+    });
+    let json = serde_json::to_string(&envelope).unwrap();
     ws.send(Message::Text(json.into())).await.unwrap();
 }
 
@@ -129,7 +159,7 @@ async fn stress_100_concurrent_sessions() {
         let url = url.clone();
         tasks.spawn(async move {
             // connect_and_join already asserts FullStateSync is received.
-            let _ws = connect_and_join(
+            let _ws = create_and_join(
                 &url,
                 &format!("sess-{}", i),
                 &format!("user-{}", i),
@@ -173,7 +203,11 @@ async fn stress_30_clients_one_session() {
 
     let mut clients: Vec<WsStream> = Vec::with_capacity(N);
     for i in 0..N {
-        let ws = connect_and_join(&url, "shared", &format!("user-{}", i)).await;
+        let ws = if i == 0 {
+            create_and_join(&url, "shared", &format!("user-{}", i)).await
+        } else {
+            join_existing(&url, "shared", &format!("user-{}", i)).await
+        };
         clients.push(ws);
     }
 
@@ -224,8 +258,8 @@ async fn stress_500_rapid_fire() {
     const N: usize = 500;
     let url = start_server().await;
 
-    let mut ws_a = connect_and_join(&url, "rapid", "Sender").await;
-    let mut ws_b = connect_and_join(&url, "rapid", "Receiver").await;
+    let mut ws_a = create_and_join(&url, "rapid", "Sender").await;
+    let mut ws_b = join_existing(&url, "rapid", "Receiver").await;
     drain(&mut ws_a).await; // clear UserJoined(B)
 
     let ids: Vec<Uuid> = (0..N).map(|_| Uuid::new_v4()).collect();
@@ -286,17 +320,20 @@ async fn stress_20_sessions_x_5_clients() {
         session_tasks.spawn(async move {
             let sid = format!("load-{}", s);
 
-            // Join all 5 clients for this session concurrently.
+            // First client creates the session, then remaining join concurrently.
+            let first_ws = create_and_join(&url, &sid, &format!("s{}-u0", s)).await;
+
             let mut join_tasks: JoinSet<WsStream> = JoinSet::new();
-            for c in 0..CLIENTS {
+            for c in 1..CLIENTS {
                 let url = url.clone();
                 let sid = sid.clone();
                 join_tasks.spawn(async move {
-                    connect_and_join(&url, &sid, &format!("s{}-u{}", s, c)).await
+                    join_existing(&url, &sid, &format!("s{}-u{}", s, c)).await
                 });
             }
 
             let mut clients: Vec<WsStream> = Vec::with_capacity(CLIENTS);
+            clients.push(first_ws);
             while let Some(r) = join_tasks.join_next().await {
                 clients.push(r.expect("client join panicked"));
             }

@@ -2,7 +2,7 @@ use tokio_tungstenite::connect_async;
 use uuid::Uuid;
 
 use meerkat_server::messages::{
-    ClientEvent, CreateObjectPayload, JoinSessionPayload, ServerEvent,
+    ClientEvent, CreateObjectPayload, CreateSessionPayload, JoinSessionPayload, ServerEvent,
 };
 use meerkat_server::types::{ObjectType, Transform};
 
@@ -17,9 +17,10 @@ async fn test_duplicate_object_id_is_rejected() {
     let (mut ws_a, _) = connect_async(&url).await.expect("A: connect failed");
     send(
         &mut ws_a,
-        ClientEvent::JoinSession(JoinSessionPayload {
+        ClientEvent::CreateSession(CreateSessionPayload {
             session_id: "dup-create".to_string(),
             display_name: "Alice".to_string(),
+            password: "somepassword".to_string(),
         }),
     )
     .await;
@@ -32,6 +33,7 @@ async fn test_duplicate_object_id_is_rejected() {
         ClientEvent::JoinSession(JoinSessionPayload {
             session_id: "dup-create".to_string(),
             display_name: "Bob".to_string(),
+            password: "somepassword".to_string(),
         }),
     )
     .await;

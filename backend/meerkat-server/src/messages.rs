@@ -15,11 +15,41 @@ pub struct MessageEnvelope {
 
 // ── Client → Server payloads ──────────────────────────────────────────────────
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct JoinSessionPayload {
     pub session_id: String,
     pub display_name: String,
+    pub password: String,
 }
+
+impl std::fmt::Debug for JoinSessionPayload { 
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("JoinSessionPayload")
+            .field("session_id", &self.session_id)
+            .field("display_name", &self.display_name)
+            .field("password", &"***REDACTED***")
+            .finish()
+    }
+}
+
+// Kept separate from JoinSessionPayload for clearer intent and to avoid confusion in handlers, even though the fields are the same
+#[derive(Serialize, Deserialize, Clone)]
+pub struct CreateSessionPayload { 
+    pub session_id: String,
+    pub display_name: String,
+    pub password: String,
+}
+
+impl std::fmt::Debug for CreateSessionPayload { 
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("CreateSessionPayload")
+            .field("session_id", &self.session_id)
+            .field("display_name", &self.display_name)
+            .field("password", &"***REDACTED***")
+            .finish()
+    }
+}
+
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct CreateObjectPayload {
@@ -76,6 +106,7 @@ pub struct UpdatedCursor {
 #[serde(tag = "event_type", content = "payload")]
 pub enum ClientEvent {
     JoinSession(JoinSessionPayload),
+    CreateSession(CreateSessionPayload),
     LeaveSession,
     CreateObject(CreateObjectPayload),
     DeleteObject(DeleteObjectPayload),
@@ -224,6 +255,7 @@ mod tests {
         round_trip_client(&ClientEvent::JoinSession(JoinSessionPayload {
             session_id: "shot-01".to_string(),
             display_name: "Alice".to_string(),
+            password: "password123".to_string(),
         }));
     }
 

@@ -1,7 +1,7 @@
 use tokio_tungstenite::connect_async;
 use uuid::Uuid;
 
-use meerkat_server::messages::{ClientEvent, JoinSessionPayload, ServerEvent};
+use meerkat_server::messages::{ClientEvent, CreateSessionPayload, JoinSessionPayload, ServerEvent};
 
 mod common;
 
@@ -14,16 +14,18 @@ async fn test_concurrent_writes_separate_sessions() {
     let url = start_test_server().await;
 
     let (mut ws_a, _) = connect_async(&url).await.unwrap();
-    send(&mut ws_a, ClientEvent::JoinSession(JoinSessionPayload {
+    send(&mut ws_a, ClientEvent::CreateSession(CreateSessionPayload {
         session_id: "concurrent-1".to_string(),
         display_name: "Alice".to_string(),
+        password: "somepassword".to_string(),
     })).await;
     recv(&mut ws_a).await; // FullStateSync
 
     let (mut ws_b, _) = connect_async(&url).await.unwrap();
-    send(&mut ws_b, ClientEvent::JoinSession(JoinSessionPayload {
+    send(&mut ws_b, ClientEvent::CreateSession(CreateSessionPayload {
         session_id: "concurrent-2".to_string(),
         display_name: "Bob".to_string(),
+        password: "somepassword".to_string(),
     })).await;
     recv(&mut ws_b).await; // FullStateSync
 
@@ -61,9 +63,10 @@ async fn test_concurrent_writes_same_session() {
     let url = start_test_server().await;
 
     let (mut ws_a, _) = connect_async(&url).await.unwrap();
-    send(&mut ws_a, ClientEvent::JoinSession(JoinSessionPayload {
+    send(&mut ws_a, ClientEvent::CreateSession(CreateSessionPayload {
         session_id: "concurrent-shared".to_string(),
         display_name: "Alice".to_string(),
+        password: "somepassword".to_string(),
     })).await;
     recv(&mut ws_a).await; // FullStateSync
 
@@ -71,6 +74,7 @@ async fn test_concurrent_writes_same_session() {
     send(&mut ws_b, ClientEvent::JoinSession(JoinSessionPayload {
         session_id: "concurrent-shared".to_string(),
         display_name: "Bob".to_string(),
+        password: "somepassword".to_string(),
     })).await;
     recv(&mut ws_b).await; // FullStateSync
     let joined = recv(&mut ws_a).await;

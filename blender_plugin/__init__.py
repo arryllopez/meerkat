@@ -17,6 +17,7 @@ bl_info = {
 
 classes = [
     preferences.MeerkatPreferences,
+    operators.MEERKAT_OT_create_session,
     operators.MEERKAT_OT_connect,
     operators.MEERKAT_OT_disconnect,
     operators.MEERKAT_OT_add_cube,
@@ -41,6 +42,14 @@ def register():
     register_draw_handler()
     bpy.types.Scene.meerkat_room_name = bpy.props.StringProperty(name="Room Name", default="")
     bpy.types.Scene.meerkat_display_name = bpy.props.StringProperty(name="Display Name", default="")
+    bpy.types.Scene.meerkat_session_password = bpy.props.StringProperty(
+        name="Password", subtype='PASSWORD', default=""
+    )
+    bpy.types.Scene.meerkat_panel_mode = bpy.props.EnumProperty(
+        items=[('JOIN', 'Join', 'Join an existing session'),
+               ('CREATE', 'Create', 'Create a new session')],
+        default='JOIN',
+    )
     # add keybind here for adding stuff in the viewport
     # bpy.context.window_manager.keyconfigs.addon.keymaps.new()
 
@@ -55,4 +64,6 @@ def unregister():
     unregister_draw_handler()
     del bpy.types.Scene.meerkat_room_name
     del bpy.types.Scene.meerkat_display_name
+    del bpy.types.Scene.meerkat_session_password
+    del bpy.types.Scene.meerkat_panel_mode
 

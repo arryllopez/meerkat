@@ -556,6 +556,23 @@ def handle_cursor_updated(payload):
     _redraw_panels()
 
 
+def handle_error(payload):
+    state = PluginState()
+    code = payload.get("code", "UNKNOWN")
+    message = payload.get("message", "Unknown error")
+    print(f"[Meerkat] Server error: {code} — {message}")
+
+    # Disconnect on auth errors — server won't send FullStateSync
+    if code in ("WRONG_PASSWORD", "SESSION_NOT_FOUND", "SESSION_EXISTS"):
+        if state.ws_client:
+            state.ws_client.disconnect()
+            state.ws_client = None
+        state.connected = False
+        state.session_id = ""
+        state.display_name = ""
+        _redraw_panels()
+
+
 EVENT_HANDLERS = {
     "FullStateSync": handle_full_state_sync,
     "ObjectCreated": handle_object_created,
@@ -567,6 +584,7 @@ EVENT_HANDLERS = {
     "UserLeft": handle_user_left,
     "UserSelected": handle_user_selected,
     "CursorUpdated": handle_cursor_updated,
+    "Error": handle_error,
 }
 
 

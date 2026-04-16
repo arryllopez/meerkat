@@ -26,9 +26,17 @@ class MEERKAT_PT_main_panel(bpy.types.Panel):
 
         # Reconnect UI removed: no retry logic in client as of 2026-04-13.
         if not state.connected:
+            row = layout.row(align=True)
+            row.prop(context.scene, "meerkat_panel_mode", expand=True)
+
             layout.prop(context.scene, "meerkat_room_name")
+            layout.prop(context.scene, "meerkat_session_password")
             layout.prop(context.scene, "meerkat_display_name")
-            layout.operator("meerkat.connect")
+
+            if context.scene.meerkat_panel_mode == 'CREATE':
+                layout.operator("meerkat.create_session")
+            else:
+                layout.operator("meerkat.connect")
         else:
             layout.separator()
             box = layout.box() 
