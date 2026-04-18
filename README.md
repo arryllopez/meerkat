@@ -32,7 +32,6 @@ Blender has no built-in real-time collaboration. Teams juggle `.blend` file vers
 - Live transforms: position, rotation, scale throttled at 30Hz.
 - Camera and light property sync.
 - Presence: connected users panel, selection highlights, remote cursor overlays.
-- Shared asset library placement with hierarchy and missing-asset placeholders.
 - Password-gated sessions.
 - Full state sync + reconnect + save-scene workflow.
 
@@ -40,17 +39,13 @@ Blender has no built-in real-time collaboration. Teams juggle `.blend` file vers
 
 ## Alpha goal (v0.1) — Figma for Blender scene layouts
 
-Real-time collaborative **scene layout** in Blender. Place, arrange, parent, and modify shared objects and assets together. Think Figma, but for a 3D scene: you and your teammates block out a set, arrange assets, tweak lighting, all live. Mesh editing is not part of alpha — that's the v0.2 headline.
+Real-time collaborative **scene layout** in Blender. Place, arrange, parent, and modify shared primitives, images, and drawings together. Think Figma, but for a 3D scene: you and your teammates block out a set, arrange references, tweak lighting, sketch in grease pencil, all live. Mesh-level editing is not part of alpha — that's the v0.2 headline. External asset library import (`.blend` linking) is also post-alpha, tracked in [issue #15](https://github.com/arryllopez/meerkat/issues/15).
 
-**Who it's for:** layout teams, set dressers, level designers, architectural blockouts, anyone whose workflow is object-level.
+**Who it's for:** layout teams, set dressers, level designers, architectural blockouts, storyboarders, anyone whose workflow is object-level.
 
 ### Alpha roadmap
 
-**Asset library hardening**
-- [ ] Finish remaining asset import edge cases (re-import collisions, missing source files, nested hierarchies, orphan cleanup).
-- [ ] Graceful failures on all asset errors — no crashes, clear user-facing messages.
-
-**Object type coverage**
+**Phase 1 — Object type coverage** (biggest remaining chunk)
 
 All Blender object data types relevant to scene layout, not just mesh primitives.
 
@@ -76,7 +71,7 @@ All Blender object data types relevant to scene layout, not just mesh primitives
 | Scene settings | ☐ | Render, frame range, units |
 | World | ☐ | HDRI, background color, environment |
 
-**Scene structure**
+**Phase 2 — Scene structure**
 - [ ] Parenting (object-to-object, object-to-collection).
 - [ ] Modifier stack sync (subsurf, mirror, bevel, array, solidify, boolean).
 
@@ -84,20 +79,21 @@ All Blender object data types relevant to scene layout, not just mesh primitives
 - Armature (rigging)
 - Particles (cache sync)
 - Physics
-- Linked libraries (`.blend` references)
 - VSE (video sequencer)
 
 **Out of alpha scope**
+- External asset library import / `.blend` linking — semi-implemented, unstable. Tracked in [#15](https://github.com/arryllopez/meerkat/issues/15).
+- Concurrent mesh-level editing — v0.2 headline (see post-alpha).
 - Actions, NLA strips (animation — post-alpha).
 - Compositing nodes.
 - NURBS surfaces.
 
-**Polish**
+**Phase 3 — Polish**
 - [ ] Reconnect UX (no stuck states, clear error surfacing).
 - [ ] Rate limits and payload size guards.
 - [ ] Session membership edge cases (purposeful disconnect vs retry logic, idle sessions).
 
-**Deployment**
+**Phase 4 — Deployment**
 - [ ] Docker + hosted relay.
 - [ ] Launch demo video: 4-person scene layout session.
 
