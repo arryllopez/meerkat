@@ -563,7 +563,7 @@ def handle_error(payload):
     print(f"[Meerkat] Server error: {code} — {message}")
 
     # Disconnect on auth errors — server won't send FullStateSync
-    if code in ("WRONG_PASSWORD", "SESSION_NOT_FOUND", "SESSION_EXISTS"):
+    if code in ("WRONG_PASSWORD", "SESSION_NOT_FOUND", "SESSION_ALREADY_EXISTS"):
         if state.ws_client:
             state.ws_client.disconnect()
             state.ws_client = None

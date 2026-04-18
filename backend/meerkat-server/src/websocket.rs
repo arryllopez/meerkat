@@ -48,10 +48,15 @@ pub async fn handle_connection(mut socket: WebSocket, state: AppState) {
             msg = socket.recv() => {
                 match msg {
                     Some(Ok(Message::Text(t))) => {
-                        tracing::info!(connection_id = %connection_id, raw_message = %t, "received client message");
                         match parse_client_message(&t) {
                             Ok(event) => {
-                                tracing::info!(connection_id = %connection_id, event_type = ?event, "parsed client event");
+                                // High-frequency events (cursor) demoted to trace to avoid log spam.
+                                if matches!(event, ClientEvent::UpdateCursor(_)) {
+                                    tracing::trace!(connection_id = %connection_id, event_type = ?event, "parsed client event");
+                                } else {
+                                    tracing::info!(connection_id = %connection_id, raw_message = %t, "received client message");
+                                    tracing::info!(connection_id = %connection_id, event_type = ?event, "parsed client event");
+                                }
                                 dispatch(&mut socket, &state, connection_id, event).await
                             },
                             Err(e) => {

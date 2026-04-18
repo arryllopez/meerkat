@@ -97,9 +97,9 @@ async fn test_join_nonexistent_session_rejected() {
     let msg = recv(&mut ws).await;
     match msg {
         ServerEvent::Error(e) => {
-            assert_eq!(e.code, "SessionNotFound");
+            assert_eq!(e.code, "SESSION_NOT_FOUND");
         }
-        other => panic!("expected Error(SessionNotFound), got {:?}", other),
+        other => panic!("expected Error(SESSION_NOT_FOUND), got {:?}", other),
     }
 }
 
@@ -125,8 +125,8 @@ async fn test_create_duplicate_session_rejected() {
     let msg = recv(&mut ws_b).await;
     match msg {
         ServerEvent::Error(e) => {
-            assert_eq!(e.code, "SessionAlreadyExists");
+            assert_eq!(e.code, "SESSION_ALREADY_EXISTS");
         }
-        other => panic!("expected Error(SessionAlreadyExists), got {:?}", other),
+        other => panic!("expected Error(SESSION_ALREADY_EXISTS), got {:?}", other),
     }
 }

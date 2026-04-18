@@ -12,7 +12,7 @@ use super::helpers::{cleanup_stale_membership, add_user_to_session};
 pub async fn handle (socket: &mut WebSocket, state: &AppState, connection_id: Uuid, payload: CreateSessionPayload) {
     if state.sessions.contains_key(&payload.session_id) {
         let err_json = serde_json::to_string(&ServerEvent::Error(ErrorPayload {
-            code: "SessionAlreadyExists".to_string(),
+            code: "SESSION_ALREADY_EXISTS".to_string(),
             message: format!("Session with id '{}' already exists", payload.session_id),
         }));
         if let Ok(json) = err_json {

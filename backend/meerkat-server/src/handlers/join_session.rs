@@ -24,7 +24,7 @@ pub async fn handle(socket :&mut WebSocket, state: &AppState, connection_id: Uui
         Some(s) => s,
         None => {
             let err_json = serde_json::to_string(&ServerEvent::Error(ErrorPayload {
-                code: "SessionNotFound".to_string(),
+                code: "SESSION_NOT_FOUND".to_string(),
                 message: format!("Session with id '{}' not found", payload.session_id),
             }));
             if let Ok(json) = err_json {
