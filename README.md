@@ -94,7 +94,7 @@ All Blender object data types relevant to scene layout, not just mesh primitives
 - [ ] Session membership edge cases (purposeful disconnect vs retry logic, idle sessions).
 
 **Phase 4 — Deployment**
-- [ ] Docker + hosted relay.
+- [ ] Docker + hosted relay server
 - [ ] Launch demo video: 4-person scene layout session.
 
 ## Post-alpha roadmap
