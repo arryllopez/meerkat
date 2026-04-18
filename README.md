@@ -50,10 +50,47 @@ Real-time collaborative **scene layout** in Blender. Place, arrange, parent, and
 - [ ] Finish remaining asset import edge cases (re-import collisions, missing source files, nested hierarchies, orphan cleanup).
 - [ ] Graceful failures on all asset errors — no crashes, clear user-facing messages.
 
-**Primitives and scene structure**
-- [ ] Full primitive coverage with creation parameters (cylinder segments, sphere subdivisions, torus radii, cone, icosphere, grid).
-- [ ] Parenting and collection hierarchy sync.
-- [ ] Modifier stack sync (subsurf, mirror, bevel, array).
+**Object type coverage**
+
+All Blender object data types relevant to scene layout, not just mesh primitives.
+
+| Type | Alpha | Notes |
+|------|:-----:|-------|
+| Mesh | ✅ | Already synced; extend to full primitive creation params (segments, subdivisions, radii) |
+| Camera | ✅ | Already synced |
+| Light | ✅ | Already synced |
+| Light Probe | ☐ | Reflection / irradiance probes |
+| Object (empty) | ☐ | Plain empties (plain axes, arrows, image) |
+| Collection | ☐ | Full hierarchy sync (create, nest, move, rename) |
+| Curve | ☐ | Bezier + NURBS curves (NURBS *surfaces* out of alpha scope) |
+| Text | ☐ | 3D text objects with font + geometry params |
+| Metaball | ☐ | Implicit surfaces |
+| Grease Pencil (v2 + v3) | ☐ | 2D/3D sketching + annotation |
+| Image (reference) | ☐ | Empty-image objects and background references |
+| Volume | ☐ | VDB volume objects |
+| Speaker | ☐ | Audio objects |
+| Material | ☐ | Material assignments + basic properties (shader node graph sync is post-alpha) |
+| Texture | ☐ | Texture slots and references |
+| Node Groups | ☐ | Geometry nodes + material node groups (compositing nodes post-alpha) |
+| Geometry Nodes | ☐ | Node graph state sync |
+| Scene settings | ☐ | Render, frame range, units |
+| World | ☐ | HDRI, background color, environment |
+
+**Scene structure**
+- [ ] Parenting (object-to-object, object-to-collection).
+- [ ] Modifier stack sync (subsurf, mirror, bevel, array, solidify, boolean).
+
+**Partial / planned (may slip to v0.2)**
+- Armature (rigging)
+- Particles (cache sync)
+- Physics
+- Linked libraries (`.blend` references)
+- VSE (video sequencer)
+
+**Out of alpha scope**
+- Actions, NLA strips (animation — post-alpha).
+- Compositing nodes.
+- NURBS surfaces.
 
 **Polish**
 - [ ] Reconnect UX (no stuck states, clear error surfacing).
