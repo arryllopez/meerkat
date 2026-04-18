@@ -449,16 +449,20 @@ class MEERKAT_OT_place_asset(bpy.types.Operator):
             self.report({'ERROR'}, f"Failed to link asset: {e}")
             return {'CANCELLED'}
 
-        # Add all linked objects to the scene collection
-        root_obj = None
+        # Add all linked objects to the scene collection.
+        # data_to.objects preserves the order of objects_to_link, so index 0 is the
+        # root even when Blender renames on collision (e.g. "Chair" -> "Chair.001"
+        # when re-importing an asset that's already in the scene).
         for obj in data_to.objects:
             if obj is not None:
                 context.collection.objects.link(obj)
-                if obj.name == asset_name:
-                    root_obj = obj
 
-        if not root_obj:
-            self.report({'ERROR'}, f"Asset '{asset_name}' not found after linking")
+        root_obj = data_to.objects[0] if data_to.objects else None
+        if root_obj is None:
+            for obj in data_to.objects:
+                if obj is not None:
+                    bpy.data.objects.remove(obj, do_unlink=True)
+            self.report({'ERROR'}, f"Asset '{asset_name}' not found in library")
             return {'CANCELLED'}
 
         _send_create_object(
