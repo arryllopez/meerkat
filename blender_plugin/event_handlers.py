@@ -3,6 +3,7 @@ import bpy
 import time
 import queue
 import traceback
+from uuid import uuid4
 from .state import PluginState
 from .utils import build_transform
 
@@ -88,11 +89,45 @@ def _build_sun_light_props(obj):
     }}
 
 
+def _build_spot_light_props(obj):
+    light = obj.data
+    return {"SpotLight": {
+        "color": list(light.color),
+        "temperature": 6500.0,
+        "exposure": 0.0,
+        "normalize": False,
+        "power": light.energy,
+        "radius": light.shadow_soft_size,
+        "soft_falloff": False,
+        "angle": light.spot_size,
+        "blend": light.spot_blend,
+        "show_cone": light.show_cone,
+    }}
+
+
+def _build_area_light_props(obj):
+    light = obj.data
+    is_rect = light.shape in ("RECTANGLE", "ELLIPSE")
+    return {"AreaLight": {
+        "color": list(light.color),
+        "temperature": 6500.0,
+        "exposure": 0.0,
+        "normalize": False,
+        "power": light.energy,
+        "shape": light.shape,
+        "size_x": light.size if is_rect else 0.0,
+        "size_y": light.size_y if is_rect else 0.0,
+        "size": light.size if not is_rect else 0.0,
+    }}
+
+
 # Maps Blender obj.type + obj.data.type to property builder
 PROPERTY_BUILDERS = {
     "CAMERA": _build_camera_props,
     "POINT":  _build_point_light_props,
     "SUN":    _build_sun_light_props,
+    "SPOT":   _build_spot_light_props,
+    "AREA":   _build_area_light_props,
 }
 
 
@@ -248,10 +283,41 @@ def _apply_sun_light_props(obj, p):
     light.angle = p.get("angle", light.angle)
 
 
+def _apply_spot_light_props(obj, p):
+    light = obj.data
+    if "color" in p:
+        light.color = p["color"]
+    light.energy = p.get("power", light.energy)
+    light.shadow_soft_size = p.get("radius", light.shadow_soft_size)
+    light.spot_size = p.get("angle", light.spot_size)
+    light.spot_blend = p.get("blend", light.spot_blend)
+    light.show_cone = p.get("show_cone", light.show_cone)
+
+
+def _apply_area_light_props(obj, p):
+    light = obj.data
+    if "color" in p:
+        light.color = p["color"]
+    light.energy = p.get("power", light.energy)
+    if "shape" in p:
+        light.shape = p["shape"]
+    # size_x/y used for Rectangle + Ellipse; size used for Square + Disk. Route by current shape.
+    if light.shape in ("RECTANGLE", "ELLIPSE"):
+        if "size_x" in p:
+            light.size = p["size_x"]
+        if "size_y" in p:
+            light.size_y = p["size_y"]
+    else:
+        if "size" in p:
+            light.size = p["size"]
+
+
 PROPERTY_APPLIERS = {
     "Camera": _apply_camera_props,
     "PointLight": _apply_point_light_props,
     "SunLight": _apply_sun_light_props,
+    "SpotLight": _apply_spot_light_props,
+    "AreaLight": _apply_area_light_props,
 }
 
 
@@ -291,9 +357,18 @@ OBJECT_CREATORS = {
     "Cube":       _create_primitive(bpy.ops.mesh.primitive_cube_add),
     "Sphere":     _create_primitive(bpy.ops.mesh.primitive_uv_sphere_add),
     "Cylinder":   _create_primitive(bpy.ops.mesh.primitive_cylinder_add),
+    "Plane":      _create_primitive(bpy.ops.mesh.primitive_plane_add),
+    "Circle":     _create_primitive(bpy.ops.mesh.primitive_circle_add),
+    "Icosphere":  _create_primitive(bpy.ops.mesh.primitive_ico_sphere_add),
+    "Cone":       _create_primitive(bpy.ops.mesh.primitive_cone_add),
+    "Torus":      _create_primitive(bpy.ops.mesh.primitive_torus_add),
+    "Grid":       _create_primitive(bpy.ops.mesh.primitive_grid_add),
+    "Monkey":     _create_primitive(bpy.ops.mesh.primitive_monkey_add),
     "Camera":     _create_primitive(bpy.ops.object.camera_add),
-    "PointLight":  _create_primitive(lambda: bpy.ops.object.light_add(type='POINT')),
-    "SunLight":    _create_primitive(lambda: bpy.ops.object.light_add(type='SUN')),
+    "PointLight": _create_primitive(lambda: bpy.ops.object.light_add(type='POINT')),
+    "SunLight":   _create_primitive(lambda: bpy.ops.object.light_add(type='SUN')),
+    "SpotLight":  _create_primitive(lambda: bpy.ops.object.light_add(type='SPOT')),
+    "AreaLight":  _create_primitive(lambda: bpy.ops.object.light_add(type='AREA')),
 }
 
 
@@ -387,6 +462,93 @@ def handle_object_created(payload):
         _create_object_from_snapshot(obj_id, obj_data)
     finally:
         state.is_applying_remote_update = False
+
+
+# Ordered: check Icosphere before Sphere, Suzanne before Monkey-fallback.
+# Substring match tolerates Blender's ".001"-suffixed dedup names.
+MESH_NAME_PATTERNS = [
+    ("icosphere", "Icosphere"),
+    ("sphere",    "Sphere"),
+    ("cube",      "Cube"),
+    ("cylinder",  "Cylinder"),
+    ("plane",     "Plane"),
+    ("circle",    "Circle"),
+    ("cone",      "Cone"),
+    ("torus",     "Torus"),
+    ("grid",      "Grid"),
+    ("suzanne",   "Monkey"),
+    ("monkey",    "Monkey"),
+]
+
+
+def _infer_mesh_type(name):
+    lower = name.lower()
+    for pattern, object_type in MESH_NAME_PATTERNS:
+        if pattern in lower:
+            return object_type
+    return None
+
+
+def _classify_new_object(obj):
+    """Return (object_type, properties) for a native-added object, or (None, None) to skip."""
+    if obj.type == "CAMERA":
+        return "Camera", _build_camera_props(obj)
+    if obj.type == "LIGHT":
+        light_type = obj.data.type
+        if light_type == "POINT":
+            return "PointLight", _build_point_light_props(obj)
+        if light_type == "SUN":
+            return "SunLight", _build_sun_light_props(obj)
+        if light_type == "SPOT":
+            return "SpotLight", _build_spot_light_props(obj)
+        if light_type == "AREA":
+            return "AreaLight", _build_area_light_props(obj)
+        return None, None
+    if obj.type == "MESH":
+        inferred = _infer_mesh_type(obj.name)
+        if inferred is None:
+            return None, None
+        return inferred, None
+    return None, None
+
+
+def detect_and_send_creations():
+    """Tag + sync any scene object that lacks a meerkat_id (e.g. added via Shift+A)."""
+    state = PluginState()
+    if not state.connected or not state.ws_client:
+        return
+
+    for obj in bpy.data.objects:
+        if "meerkat_id" in obj or "meerkat_skip" in obj:
+            continue
+        # Library-linked objects come in via place_asset flow, not native add.
+        if obj.library is not None:
+            continue
+
+        object_type, properties = _classify_new_object(obj)
+        if object_type is None:
+            # Mark so we don't re-log/re-check every tick.
+            obj["meerkat_skip"] = True
+            print(f"[Meerkat] Skipping unsupported object '{obj.name}' (blender type={obj.type})")
+            continue
+
+        meerkat_id = str(uuid4())
+        obj["meerkat_id"] = meerkat_id
+        state.object_map[meerkat_id] = obj
+
+        state.ws_client.send({
+            "event_type": "CreateObject",
+            "payload": {
+                "object_id": meerkat_id,
+                "name": obj.name,
+                "object_type": object_type,
+                "asset_id": None,
+                "asset_library": None,
+                "transform": build_transform(obj),
+                "properties": properties,
+            }
+        })
+        print(f"[Meerkat] Detected native add: {object_type} '{obj.name}' id={meerkat_id}")
 
 
 def detect_and_send_deletions():
@@ -618,6 +780,10 @@ def timer_function():
             except Exception as e:
                 print(f"[Meerkat] ERROR handling {event_type}: {e}")
                 traceback.print_exc()
+
+    # Detect local native-adds (Shift+A, Add menu) and notify server
+    if not state.is_applying_remote_update:
+        detect_and_send_creations()
 
     # Detect local deletions and notify server
     if not state.is_applying_remote_update:

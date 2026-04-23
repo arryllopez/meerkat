@@ -90,6 +90,13 @@ pub enum ObjectType {
     Cube,
     Sphere,
     Cylinder,
+    Plane,
+    Circle,
+    Icosphere, 
+    Cone,
+    Torus,
+    Grid,
+    Monkey, 
     Camera,     // needs struct
     PointLight, // needs struct
     SpotLight,  // needs struct
@@ -178,10 +185,10 @@ pub struct AreaLightProperties {
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub enum AreaLightShape {
     // different shapes that an area light can have since blender has fixed options for the shape of an area light
-    Rectangle,
-    Square,
-    Disk,
-    Ellipse,
+    RECTANGLE, 
+    SQUARE,
+    DISK,
+    ELLIPSE,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]

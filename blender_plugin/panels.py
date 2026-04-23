@@ -53,17 +53,6 @@ class MEERKAT_PT_main_panel(bpy.types.Panel):
                 warning.label(text="LAST USER IN SESSION", icon='ERROR')
                 warning.label(text="Disconnecting can lose unsaved collaboration state.")
 
-            layout.separator()
-            layout.label(text="Add Object")
-            row = layout.row(align=True)
-            row.operator("meerkat.add_cube", text="Cube")
-            row.operator("meerkat.add_sphere", text="Sphere")
-            row.operator("meerkat.add_cylinder", text="Cylinder")
-            row = layout.row(align=True)
-            row.operator("meerkat.add_camera", text="Camera")
-            row.operator("meerkat.add_point_light", text="Point Light")
-            row.operator("meerkat.add_sun_light", text="Sun Light")
-
             if state.asset_library_objects:
                 layout.separator()
                 layout.label(text="Asset Library")
