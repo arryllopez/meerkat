@@ -64,16 +64,29 @@ def _build_camera_props(obj):
     }}
 
 
+# temperature/exposure/normalize landed in Blender 4.2; getattr keeps 4.0/4.1 hosts working.
 def _build_point_light_props(obj):
     light = obj.data
     return {"PointLight": {
         "color": list(light.color),
-        "temperature": 6500.0,
-        "exposure": 0.0,
+        "use_temperature": getattr(light, "use_temperature", False),
+        "temperature": getattr(light, "temperature", 6500.0),
+        "exposure": getattr(light, "exposure", 0.0),
         "power": light.energy,
         "radius": light.shadow_soft_size,
-        "soft_falloff": False,
-        "normalize": False,
+        "soft_falloff": getattr(light, "use_soft_falloff", False),
+        "normalize": getattr(light, "normalize", False),
+        "cast_shadow": getattr(light, "use_shadow", True),
+        "shadow_jitter": getattr(light, "use_shadow_jitter", False),
+        "shadow_jitter_overblur": getattr(light, "shadow_jitter_overblur", 0.0),
+        "shadow_filter_radius": getattr(light, "shadow_filter_radius", 1.0),
+        "shadow_maximum_resolution": getattr(light, "shadow_maximum_resolution", 0.001),
+        "diffuse_factor": getattr(light, "diffuse_factor", 1.0),
+        "specular_factor": getattr(light, "specular_factor", 1.0),
+        "transmission_factor": getattr(light, "transmission_factor", 1.0),
+        "volume_factor": getattr(light, "volume_factor", 1.0),
+        "use_custom_distance": getattr(light, "use_custom_distance", False),
+        "cutoff_distance": getattr(light, "cutoff_distance", 40.0),
     }}
 
 
@@ -81,11 +94,21 @@ def _build_sun_light_props(obj):
     light = obj.data
     return {"SunLight": {
         "color": list(light.color),
-        "temperature": 6500.0,
-        "exposure": 0.0,
-        "normalize": False,
+        "use_temperature": getattr(light, "use_temperature", False),
+        "temperature": getattr(light, "temperature", 6500.0),
+        "exposure": getattr(light, "exposure", 0.0),
+        "normalize": getattr(light, "normalize", False),
         "strength": light.energy,
         "angle": light.angle,
+        "cast_shadow": getattr(light, "use_shadow", True),
+        "shadow_jitter": getattr(light, "use_shadow_jitter", False),
+        "shadow_jitter_overblur": getattr(light, "shadow_jitter_overblur", 0.0),
+        "shadow_filter_radius": getattr(light, "shadow_filter_radius", 1.0),
+        "shadow_maximum_resolution": getattr(light, "shadow_maximum_resolution", 0.001),
+        "diffuse_factor": getattr(light, "diffuse_factor", 1.0),
+        "specular_factor": getattr(light, "specular_factor", 1.0),
+        "transmission_factor": getattr(light, "transmission_factor", 1.0),
+        "volume_factor": getattr(light, "volume_factor", 1.0),
     }}
 
 
@@ -93,15 +116,27 @@ def _build_spot_light_props(obj):
     light = obj.data
     return {"SpotLight": {
         "color": list(light.color),
-        "temperature": 6500.0,
-        "exposure": 0.0,
-        "normalize": False,
+        "use_temperature": getattr(light, "use_temperature", False),
+        "temperature": getattr(light, "temperature", 6500.0),
+        "exposure": getattr(light, "exposure", 0.0),
+        "normalize": getattr(light, "normalize", False),
         "power": light.energy,
         "radius": light.shadow_soft_size,
-        "soft_falloff": False,
+        "soft_falloff": getattr(light, "use_soft_falloff", False),
         "angle": light.spot_size,
         "blend": light.spot_blend,
         "show_cone": light.show_cone,
+        "cast_shadow": getattr(light, "use_shadow", True),
+        "shadow_jitter": getattr(light, "use_shadow_jitter", False),
+        "shadow_jitter_overblur": getattr(light, "shadow_jitter_overblur", 0.0),
+        "shadow_filter_radius": getattr(light, "shadow_filter_radius", 1.0),
+        "shadow_maximum_resolution": getattr(light, "shadow_maximum_resolution", 0.001),
+        "diffuse_factor": getattr(light, "diffuse_factor", 1.0),
+        "specular_factor": getattr(light, "specular_factor", 1.0),
+        "transmission_factor": getattr(light, "transmission_factor", 1.0),
+        "volume_factor": getattr(light, "volume_factor", 1.0),
+        "use_custom_distance": getattr(light, "use_custom_distance", False),
+        "cutoff_distance": getattr(light, "cutoff_distance", 40.0),
     }}
 
 
@@ -110,14 +145,26 @@ def _build_area_light_props(obj):
     is_rect = light.shape in ("RECTANGLE", "ELLIPSE")
     return {"AreaLight": {
         "color": list(light.color),
-        "temperature": 6500.0,
-        "exposure": 0.0,
-        "normalize": False,
+        "use_temperature": getattr(light, "use_temperature", False),
+        "temperature": getattr(light, "temperature", 6500.0),
+        "exposure": getattr(light, "exposure", 0.0),
+        "normalize": getattr(light, "normalize", False),
         "power": light.energy,
         "shape": light.shape,
         "size_x": light.size if is_rect else 0.0,
         "size_y": light.size_y if is_rect else 0.0,
         "size": light.size if not is_rect else 0.0,
+        "cast_shadow": getattr(light, "use_shadow", True),
+        "shadow_jitter": getattr(light, "use_shadow_jitter", False),
+        "shadow_jitter_overblur": getattr(light, "shadow_jitter_overblur", 0.0),
+        "shadow_filter_radius": getattr(light, "shadow_filter_radius", 1.0),
+        "shadow_maximum_resolution": getattr(light, "shadow_maximum_resolution", 0.001),
+        "diffuse_factor": getattr(light, "diffuse_factor", 1.0),
+        "specular_factor": getattr(light, "specular_factor", 1.0),
+        "transmission_factor": getattr(light, "transmission_factor", 1.0),
+        "volume_factor": getattr(light, "volume_factor", 1.0),
+        "use_custom_distance": getattr(light, "use_custom_distance", False),
+        "cutoff_distance": getattr(light, "cutoff_distance", 40.0),
     }}
 
 
@@ -267,37 +314,107 @@ def _apply_camera_props(obj, p):
     cam.sensor_height = p.get("sensor_height", cam.sensor_height)
 
 
-def _apply_point_light_props(obj, p):
-    light = obj.data
+# setattr-if-present keeps appliers safe on Blender < 4.2 where these attrs don't exist.
+def _set_if_attr(obj, attr, value):
+    if hasattr(obj, attr):
+        setattr(obj, attr, value)
+
+
+def _apply_attrs(target, p, mapping):
+    """For each (json_key, blender_attr) in mapping, copy p[json_key] → target.attr if present."""
+    for json_key, attr in mapping:
+        if json_key in p:
+            _set_if_attr(target, attr, p[json_key])
+
+
+CONTRIBUTION_FACTORS = [
+    ("diffuse_factor", "diffuse_factor"),
+    ("specular_factor", "specular_factor"),
+    ("transmission_factor", "transmission_factor"),
+    ("volume_factor", "volume_factor"),
+]
+
+# Shadow filter + reso are gated only by cast_shadow; jitter has its own sub-gate (overblur).
+_SHADOW_FLAT_ATTRS = [
+    ("shadow_filter_radius", "shadow_filter_radius"),
+    ("shadow_maximum_resolution", "shadow_maximum_resolution"),
+]
+
+
+def _apply_shadow_block(light, p):
+    """cast_shadow → (jitter → overblur), filter, resolution_limit. Mirrors Blender's grey-out hierarchy."""
+    if "cast_shadow" in p:
+        _set_if_attr(light, "use_shadow", p["cast_shadow"])
+    if not p.get("cast_shadow", True):
+        return
+    _apply_attrs(light, p, _SHADOW_FLAT_ATTRS)
+    if "shadow_jitter" in p:
+        _set_if_attr(light, "use_shadow_jitter", p["shadow_jitter"])
+    if p.get("shadow_jitter", False) and "shadow_jitter_overblur" in p:
+        _set_if_attr(light, "shadow_jitter_overblur", p["shadow_jitter_overblur"])
+
+
+def _apply_distance_block(light, p):
+    """use_custom_distance → cutoff_distance."""
+    if "use_custom_distance" in p:
+        _set_if_attr(light, "use_custom_distance", p["use_custom_distance"])
+    if p.get("use_custom_distance", False) and "cutoff_distance" in p:
+        _set_if_attr(light, "cutoff_distance", p["cutoff_distance"])
+
+
+def _apply_common_light_props(light, p):
     if "color" in p:
         light.color = p["color"]
+    _apply_attrs(light, p, [
+        ("exposure", "exposure"),
+        ("normalize", "normalize"),
+    ])
+    # use_temperature gates the temperature value; toggle always set, value only when on.
+    if "use_temperature" in p:
+        _set_if_attr(light, "use_temperature", p["use_temperature"])
+    if p.get("use_temperature", False) and "temperature" in p:
+        _set_if_attr(light, "temperature", p["temperature"])
+
+
+def _apply_point_light_props(obj, p):
+    light = obj.data
+    _apply_common_light_props(light, p)
     light.energy = p.get("power", light.energy)
     light.shadow_soft_size = p.get("radius", light.shadow_soft_size)
+    if "soft_falloff" in p:
+        _set_if_attr(light, "use_soft_falloff", p["soft_falloff"])
+    _apply_attrs(light, p, CONTRIBUTION_FACTORS)
+    _apply_shadow_block(light, p)
+    _apply_distance_block(light, p)
 
 
 def _apply_sun_light_props(obj, p):
     light = obj.data
-    if "color" in p:
-        light.color = p["color"]
+    _apply_common_light_props(light, p)
     light.energy = p.get("strength", light.energy)
     light.angle = p.get("angle", light.angle)
+    _apply_attrs(light, p, CONTRIBUTION_FACTORS)
+    _apply_shadow_block(light, p)
 
 
 def _apply_spot_light_props(obj, p):
     light = obj.data
-    if "color" in p:
-        light.color = p["color"]
+    _apply_common_light_props(light, p)
     light.energy = p.get("power", light.energy)
     light.shadow_soft_size = p.get("radius", light.shadow_soft_size)
+    if "soft_falloff" in p:
+        _set_if_attr(light, "use_soft_falloff", p["soft_falloff"])
     light.spot_size = p.get("angle", light.spot_size)
     light.spot_blend = p.get("blend", light.spot_blend)
     light.show_cone = p.get("show_cone", light.show_cone)
+    _apply_attrs(light, p, CONTRIBUTION_FACTORS)
+    _apply_shadow_block(light, p)
+    _apply_distance_block(light, p)
 
 
 def _apply_area_light_props(obj, p):
     light = obj.data
-    if "color" in p:
-        light.color = p["color"]
+    _apply_common_light_props(light, p)
     light.energy = p.get("power", light.energy)
     if "shape" in p:
         light.shape = p["shape"]
@@ -310,6 +427,10 @@ def _apply_area_light_props(obj, p):
     else:
         if "size" in p:
             light.size = p["size"]
+
+    _apply_attrs(light, p, CONTRIBUTION_FACTORS)
+    _apply_shadow_block(light, p)
+    _apply_distance_block(light, p)
 
 
 PROPERTY_APPLIERS = {
