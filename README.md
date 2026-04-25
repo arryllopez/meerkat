@@ -6,7 +6,7 @@
 [![GitHub Stars](https://img.shields.io/github/stars/arryllopez/meerkat?style=social)](https://github.com/arryllopez/meerkat)
 [![Discussions](https://img.shields.io/badge/GitHub-Discussions-purple?logo=github)](https://github.com/arryllopez/meerkat/discussions)
 
-Real-time collaborative scene editing inside Blender — multiplayer object sync, live transforms, shared presence, and (soon) turn-based collaborative mesh modeling.
+Real-time collaborative scene editing inside Blender — multiplayer object sync, live transforms, shared presence, and (later) turn-based collaborative mesh modeling.
 
 <p align="center">
   <img src="cursor_tracking-ezgif.com-video-to-gif-converter.gif" alt="Meerkat demo — real-time object sync between two Blender instances">
@@ -22,129 +22,111 @@ Real-time collaborative scene editing inside Blender — multiplayer object sync
 
 ## Why Meerkat?
 
-Blender has no built-in real-time collaboration. Teams juggle `.blend` file versions over chat or cloud sync — hoping nobody overwrites each other's work. Meerkat makes the session live.
+Blender has no built-in real-time collaboration. Teams juggle `.blend` file versions over chat or cloud sync, hoping nobody overwrites each other's work. Meerkat makes the session live, like Figma did for design.
 
 ---
 
 ## What works today
 
-- Real-time object lifecycle: create, delete, rename synced across peers.
-- Live transforms: position, rotation, scale throttled at 30Hz.
-- Camera and light property sync.
-- Presence: connected users panel, selection highlights, remote cursor overlays.
-- Password-gated sessions.
-- Full state sync + reconnect + save-scene workflow.
+- Real-time object lifecycle: create, delete, rename synced across peers
+- Live transforms: position, rotation, scale throttled at 30Hz
+- Camera and light property sync
+- Presence: connected users panel, selection highlights, remote cursor overlays
+- Password-gated sessions
+- Full state sync on join + reconnect + save-scene workflow
 
 ---
 
-## Alpha goal (v0.1) — Figma for Blender scene layouts
+## Alpha (v0.1) — Collaborative scene layout MVP
 
-Real-time collaborative **scene layout** in Blender. Place, arrange, parent, and modify shared primitives, images, and drawings together. Think Figma, but for a 3D scene: you and your teammates block out a set, arrange references, tweak lighting, sketch in grease pencil, all live. Mesh-level editing is not part of alpha — that's the v0.2 headline. External asset library import (`.blend` linking) is also post-alpha, tracked in [issue #15](https://github.com/arryllopez/meerkat/issues/15).
+Real-time collaborative scene layout in Blender. Multiple users arrange primitives, cameras, and lights in a shared 3D scene, organized with collections. Think Figma, but for a 3D scene blockout — you and your teammates place furniture, set up lighting, position cameras, all live.
 
-**Who it's for:** layout teams, set dressers, level designers, architectural blockouts, storyboarders, anyone whose workflow is object-level.
+**Demo scenario:** A team of 4 collaboratively builds a classroom blockout — desks from cylinders and cubes, ceiling lights, cameras — in under 5 minutes, with every change visible across all clients in real time.
+
+**Who it's for:** layout teams, set dressers, level designers, architectural blockouts, storyboarders — anyone whose workflow is object-level.
 
 ### Alpha roadmap
 
-**Phase 1 — Object type coverage** (biggest remaining chunk)
-
-All Blender object data types relevant to scene layout, not just mesh primitives.
-
-| Type | Alpha | Notes |
-|------|:-----:|-------|
-| Mesh | ✅ | Already synced; extend to full primitive creation params (segments, subdivisions, radii) |
-| Camera | ✅ | Already synced |
-| Light | ✅ | Already synced |
-| Light Probe | ☐ | Reflection / irradiance probes |
-| Object (empty) | ☐ | Plain empties (plain axes, arrows, image) |
-| Collection | ☐ | Full hierarchy sync (create, nest, move, rename) |
-| Curve | ☐ | Bezier + NURBS curves (NURBS *surfaces* out of alpha scope) |
-| Text | ☐ | 3D text objects with font + geometry params |
-| Metaball | ☐ | Implicit surfaces |
-| Grease Pencil (v2 + v3) | ☐ | 2D/3D sketching + annotation |
-| Image (reference) | ☐ | Empty-image objects and background references |
-| Volume | ☐ | VDB volume objects |
-| Speaker | ☐ | Audio objects |
-| Material | ☐ | Material assignments + basic properties (shader node graph sync is post-alpha) |
-| Texture | ☐ | Texture slots and references |
-| Node Groups | ☐ | Geometry nodes + material node groups (compositing nodes post-alpha) |
-| Geometry Nodes | ☐ | Node graph state sync |
-| Scene settings | ☐ | Render, frame range, units |
-| World | ☐ | HDRI, background color, environment |
-
-**Phase 2 — Scene structure**
-- [ ] Parenting (object-to-object, object-to-collection).
-- [ ] Modifier stack sync (subsurf, mirror, bevel, array, solidify, boolean).
-
-**Partial / planned (may slip to v0.2)**
-- Armature (rigging)
-- Particles (cache sync)
-- Physics
-- VSE (video sequencer)
-
-**Out of alpha scope**
-- External asset library import / `.blend` linking — semi-implemented, unstable. Tracked in [#15](https://github.com/arryllopez/meerkat/issues/15).
-- Concurrent mesh-level editing — v0.2 headline (see post-alpha).
-- Actions, NLA strips (animation — post-alpha).
-- Compositing nodes.
-- NURBS surfaces.
-
-**Phase 3 — Polish**
-- [ ] Reconnect UX (no stuck states, clear error surfacing).
-- [ ] Rate limits and payload size guards.
-- [ ] Session membership edge cases (purposeful disconnect vs retry logic, idle sessions).
-
-**Phase 4 — Deployment**
+**Remaining for v0.1:**
+- [ ] Full mesh primitive coverage — Plane, Cube, Circle, UV Sphere, Icosphere, Cylinder, Cone, Torus, Grid, Monkey
+- [ ] Collection sync (create, nest, move, rename — full hierarchy)
 - [ ] Docker + hosted relay server
-- [ ] Launch demo video: 4-person scene layout session.
+- [ ] Launch demo video: 4-person classroom blockout session
+- [ ] Reconnect UX polish (no stuck states, clear error surfacing)
+
+That's it. Alpha ships when those five boxes are checked.
+
+---
 
 ## Post-alpha roadmap
 
-### v0.2 — Concurrent mesh editing
+### v0.2 — Expanded object coverage
 
-The headline feature after alpha. A team of 4 can collaboratively model a dragon, car, or chair — in real time, on the same mesh, simultaneously. Selection-granular locks with last-write-wins semantics let peers work on disjoint regions in parallel: extrude, loop cut, bevel, move verts, all concurrently. You see your teammate's geometry grow live next to yours.
+Widening alpha's object type surface so more scene-layout workflows are viable end-to-end.
+
+- Empty objects (plain axes, arrows, image references)
+- Curve objects (Bezier — for paths and guide lines)
+- Text objects (for labels and signage)
+- Image reference objects (floor plans, concept art)
+- Parenting (object-to-object, object-to-collection)
+- Modifier stack sync, starting with Mirror and Array (most common in blockout work)
+
+### v0.3 — Richer object types and modifiers
+
+- Grease Pencil (v2 + v3)
+- Geometry Nodes (node graph state sync)
+- Material assignments + basic properties (shader node graph sync later)
+- Remaining modifiers: Subsurf, Bevel, Solidify, Boolean
+- Light probes, metaballs, volumes, speakers
+- World and scene settings
+
+### v0.4 — Concurrent mesh editing
+
+The real technical headline. A team of 4 can collaboratively model a dragon, car, or chair in real time on the same mesh, simultaneously. Selection-granular locks with last-write-wins semantics let peers work on disjoint regions in parallel: extrude, loop cut, bevel, move verts, all concurrently.
 
 Design borrows from two places: **Rust's ownership model** (exclusive mutable borrows, shared reads, RAII drop) and **Google Docs collaboration** (last-write-wins selection, per-user undo stack with cascade-delete on dependents).
 
 **Ownership model**
-- Stable per-vertex / per-edge / per-face IDs that survive topology ops.
-- Ownership table: `{ element_id → user_id }`, server-arbitrated.
-- Selection = ownership. Last-write-wins on overlap, per-element (not per-selection).
-- Shared-read borrows: peers can reference owned elements for snapping and bridge targets without claiming (`&T` to the owner's `&mut T`).
+- Stable per-vertex / per-edge / per-face IDs that survive topology ops
+- Ownership table: `{ element_id → user_id }`, server-arbitrated
+- Selection = ownership. Last-write-wins on overlap, per-element
+- Shared-read borrows: peers reference owned elements for snapping and bridge targets without claiming
 
 **Active-operator guard**
-- While a Blender operator is running (G, R, S, E, loop cut, bevel), the owner's lock is protected.
-- Preemption attempts queued server-side, applied on op exit.
-- Prevents mid-drag ownership theft and the desync that would follow.
+- While a Blender operator is running (G, R, S, E, loop cut, bevel), the owner's lock is protected
+- Preemption attempts queued server-side, applied on op exit
+- Prevents mid-drag ownership theft and the desync that would follow
 
 **Edit flow**
-- Vertex transforms streamed at 30Hz on owned elements (live sculpt feel).
-- Topology ops broadcast with stable IDs, not full snapshots.
-- Client-side ownership pre-check fails unowned-touching ops locally.
-- Optional "full-mesh lock" escalation for global ops (loop cut across body, whole-mesh proportional edit). Modeled on Rust's `unsafe {}` — opt-in, rare.
+- Vertex transforms streamed at 30Hz on owned elements (live sculpt feel)
+- Topology ops broadcast with stable IDs, not full snapshots
+- Client-side ownership pre-check fails unowned-touching ops locally
+- Optional "full-mesh lock" escalation for global ops. Modeled on Rust's `unsafe {}` — opt-in, rare
 
 **Undo (Google Docs model)**
-- Per-user undo stack (hook Blender's built-in).
-- Undo emits an inverse op broadcast like any edit.
-- Cascade-delete on topology: removing an element drops dependents (Blender's BMesh enforces this natively). Matches Google Docs behavior — you undo your sentence, the friend's italic on it goes with it.
-- Peers' dangling ops (referencing elements an undo deleted) drop silently on the peer's client.
+- Per-user undo stack (hook Blender's built-in)
+- Undo emits an inverse op broadcast like any edit
+- Cascade-delete on topology: removing an element drops dependents (BMesh enforces this natively)
+- Peers' dangling ops drop silently on their client
 
 **Peer rendering**
-- Owned elements tinted with owner's user color.
-- Hover tooltip: "Bob — 12s ago".
-- Preemption click transfers color and control atomically.
+- Owned elements tinted with owner's user color
+- Hover tooltip: "Bob — 12s ago"
+- Preemption click transfers color and control atomically
 
 **Resilience**
-- Disconnect releases all locks (bookkeeping only; LWW makes grace periods unnecessary).
-- Full mesh snapshot fallback on reconnect or desync detection.
+- Disconnect releases all locks (bookkeeping only; LWW makes grace periods unnecessary)
+- Full mesh snapshot fallback on reconnect or desync detection
 
 ### Later
 
-- CRDT concurrent editing of the *same* element (no locks, automatic convergence on overlapping edits). Research-grade territory.
-- Full operational-transform undo (transforms inverse ops against intervening peer ops, preserves peer contributions on overlapping regions).
-- Material and shader-node sync.
-- Animation sync (keyframes, markers, playback).
-- Sculpt-brush stroke streaming for high-poly workflows.
-- In-scene comments, snapshot timeline, in-plugin chat.
+- CRDT concurrent editing of the same element (no locks, automatic convergence)
+- Full operational-transform undo (inverse ops against intervening peer ops)
+- Material and shader-node sync
+- Animation sync (keyframes, markers, playback)
+- Sculpt-brush stroke streaming for high-poly workflows
+- In-scene comments, snapshot timeline, in-plugin chat
+- External asset library import / `.blend` linking
 
 ---
 
@@ -245,8 +227,8 @@ Have a question or idea? [Start a discussion](https://github.com/arryllopez/meer
 
 Licensed under the **GNU General Public License v3.0**.
 
-- Use, modify, and distribute freely.
-- Derivative work must also be open-source under GPLv3.
-- No proprietary forks.
+- Use, modify, and distribute freely
+- Derivative work must also be open-source under GPLv3
+- No proprietary forks
 
 See the [LICENSE](LICENSE) file for full details.
