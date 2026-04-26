@@ -90,6 +90,13 @@ pub enum ObjectType {
     Cube,
     Sphere,
     Cylinder,
+    Plane,
+    Circle,
+    Icosphere, 
+    Cone,
+    Torus,
+    Grid,
+    Monkey, 
     Camera,     // needs struct
     PointLight, // needs struct
     SpotLight,  // needs struct
@@ -138,17 +145,33 @@ pub struct CameraProperties {
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct PointLightProperties {
     pub color: [f32; 3],
+    pub use_temperature: bool, // gates temperature value (Blender greys it out when false)
     pub temperature: f32, // Kelvin
     pub exposure: f32,
     pub power: f32,  // watts
     pub radius: f32, // sphere radius for soft shadows
     pub soft_falloff: bool,
     pub normalize: bool,
+    // Shadow (sub-fields gated by cast_shadow; overblur further gated by shadow_jitter)
+    pub cast_shadow: bool,
+    pub shadow_jitter: bool,
+    pub shadow_jitter_overblur: f32,
+    pub shadow_filter_radius: f32,
+    pub shadow_maximum_resolution: f32,
+    // Per-shader contribution multipliers
+    pub diffuse_factor: f32,
+    pub specular_factor: f32, // glossy
+    pub transmission_factor: f32,
+    pub volume_factor: f32,
+    // Custom distance falloff (cutoff_distance gated by use_custom_distance)
+    pub use_custom_distance: bool,
+    pub cutoff_distance: f32,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct SpotLightProperties {
     pub color: [f32; 3],
+    pub use_temperature: bool,
     pub temperature: f32,
     pub exposure: f32,
     pub normalize: bool,
@@ -158,12 +181,27 @@ pub struct SpotLightProperties {
     pub angle: f32,
     pub blend: f32,
     pub show_cone: bool,
+    // Shadow (sub-fields gated by cast_shadow; overblur further gated by shadow_jitter)
+    pub cast_shadow: bool,
+    pub shadow_jitter: bool,
+    pub shadow_jitter_overblur: f32,
+    pub shadow_filter_radius: f32,
+    pub shadow_maximum_resolution: f32,
+    // Per-shader contribution multipliers
+    pub diffuse_factor: f32,
+    pub specular_factor: f32, // glossy
+    pub transmission_factor: f32,
+    pub volume_factor: f32,
+    // Custom distance falloff (cutoff_distance gated by use_custom_distance)
+    pub use_custom_distance: bool,
+    pub cutoff_distance: f32,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct AreaLightProperties {
     // Common
     pub color: [f32; 3],
+    pub use_temperature: bool,
     pub temperature: f32,
     pub exposure: f32,
     pub normalize: bool,
@@ -173,27 +211,53 @@ pub struct AreaLightProperties {
     pub size_x: f32, // used by Rectangle and Ellipse
     pub size_y: f32, // used by Rectangle and Ellipse
     pub size: f32,   // used by Square and Disk
+    // Shadow (sub-fields gated by cast_shadow; overblur further gated by shadow_jitter)
+    pub cast_shadow: bool,
+    pub shadow_jitter: bool,
+    pub shadow_jitter_overblur: f32,
+    pub shadow_filter_radius: f32,
+    pub shadow_maximum_resolution: f32,
+    // Per-shader contribution multipliers
+    pub diffuse_factor: f32,
+    pub specular_factor: f32, // glossy
+    pub transmission_factor: f32,
+    pub volume_factor: f32,
+    // Custom distance falloff (cutoff_distance gated by use_custom_distance)
+    pub use_custom_distance: bool,
+    pub cutoff_distance: f32,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub enum AreaLightShape {
     // different shapes that an area light can have since blender has fixed options for the shape of an area light
-    Rectangle,
-    Square,
-    Disk,
-    Ellipse,
+    RECTANGLE, 
+    SQUARE,
+    DISK,
+    ELLIPSE,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct SunLightProperties {
     // Common
     pub color: [f32; 3],
+    pub use_temperature: bool,
     pub temperature: f32,
     pub exposure: f32,
     pub normalize: bool,
     // Sun specific
     pub strength: f32,
     pub angle: f32,
+    // Shadow (sub-fields gated by cast_shadow; overblur further gated by shadow_jitter)
+    pub cast_shadow: bool,
+    pub shadow_jitter: bool,
+    pub shadow_jitter_overblur: f32,
+    pub shadow_filter_radius: f32,
+    pub shadow_maximum_resolution: f32,
+    // Per-shader contribution multipliers
+    pub diffuse_factor: f32,
+    pub specular_factor: f32, // glossy
+    pub transmission_factor: f32,
+    pub volume_factor: f32,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]

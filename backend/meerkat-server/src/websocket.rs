@@ -54,7 +54,6 @@ pub async fn handle_connection(mut socket: WebSocket, state: AppState) {
                                 if matches!(event, ClientEvent::UpdateCursor(_)) {
                                     tracing::trace!(connection_id = %connection_id, event_type = ?event, "parsed client event");
                                 } else {
-                                    tracing::info!(connection_id = %connection_id, raw_message = %t, "received client message");
                                     tracing::info!(connection_id = %connection_id, event_type = ?event, "parsed client event");
                                 }
                                 dispatch(&mut socket, &state, connection_id, event).await
@@ -63,7 +62,7 @@ pub async fn handle_connection(mut socket: WebSocket, state: AppState) {
                                 tracing::warn!(
                                     connection_id = %connection_id,
                                     error = %e,
-                                    raw_message = %t,
+                                    raw_len = t.len(),
                                     "failed to parse client message"
                                 );
                             }

@@ -29,14 +29,19 @@ class MEERKAT_PT_main_panel(bpy.types.Panel):
             row = layout.row(align=True)
             row.prop(context.scene, "meerkat_panel_mode", expand=True)
 
-            layout.prop(context.scene, "meerkat_room_name")
-            layout.prop(context.scene, "meerkat_session_password")
-            layout.prop(context.scene, "meerkat_display_name")
+            form = layout.column()
+            form.enabled = not state.connecting
+            form.prop(context.scene, "meerkat_room_name")
+            form.prop(context.scene, "meerkat_session_password")
+            form.prop(context.scene, "meerkat_display_name")
 
             if context.scene.meerkat_panel_mode == 'CREATE':
-                layout.operator("meerkat.create_session")
+                form.operator("meerkat.create_session")
             else:
-                layout.operator("meerkat.connect")
+                form.operator("meerkat.connect")
+
+            if state.connecting:
+                layout.label(text="Connecting…", icon='SORTTIME')
         else:
             layout.separator()
             box = layout.box() 
@@ -52,17 +57,6 @@ class MEERKAT_PT_main_panel(bpy.types.Panel):
                 warning.alert = True
                 warning.label(text="LAST USER IN SESSION", icon='ERROR')
                 warning.label(text="Disconnecting can lose unsaved collaboration state.")
-
-            layout.separator()
-            layout.label(text="Add Object")
-            row = layout.row(align=True)
-            row.operator("meerkat.add_cube", text="Cube")
-            row.operator("meerkat.add_sphere", text="Sphere")
-            row.operator("meerkat.add_cylinder", text="Cylinder")
-            row = layout.row(align=True)
-            row.operator("meerkat.add_camera", text="Camera")
-            row.operator("meerkat.add_point_light", text="Point Light")
-            row.operator("meerkat.add_sun_light", text="Sun Light")
 
             if state.asset_library_objects:
                 layout.separator()

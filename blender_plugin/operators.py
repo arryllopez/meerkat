@@ -69,8 +69,8 @@ class MEERKAT_OT_create_session(bpy.types.Operator):
     def execute(self, context):
         state = PluginState()
 
-        if state.connected:
-            self.report({'WARNING'}, "Already connected")
+        if state.connected or state.connecting:
+            self.report({'WARNING'}, "Already connected or connecting")
             return {'CANCELLED'}
 
         prefs = context.preferences.addons[__package__].preferences
@@ -85,9 +85,6 @@ class MEERKAT_OT_create_session(bpy.types.Operator):
             self.report({'ERROR'}, "Room name, display name, and password are required")
             return {'CANCELLED'}
 
-        for obj in list(bpy.data.objects):
-            bpy.data.objects.remove(obj, do_unlink=True)
-
         state.intentional_disconnect = False
         client = WebSocketClient(url)
         client.connect(session_id=room_name, display_name=display_name)
@@ -95,7 +92,7 @@ class MEERKAT_OT_create_session(bpy.types.Operator):
         state.ws_client = client
         state.session_id = room_name
         state.display_name = display_name
-        state.connected = True
+        state.connecting = True
         state.evicted = False
 
         client.send({
@@ -109,7 +106,7 @@ class MEERKAT_OT_create_session(bpy.types.Operator):
 
         bpy.ops.meerkat.cursor_tracker('INVOKE_DEFAULT')
 
-        self.report({'INFO'}, f"Created session {room_name}")
+        self.report({'INFO'}, f"Creating session {room_name}…")
         return {'FINISHED'}
 
 
@@ -146,8 +143,8 @@ class MEERKAT_OT_connect(bpy.types.Operator):
     def execute(self, context):
         state = PluginState()
 
-        if state.connected:
-            self.report({'WARNING'}, "Already connected")
+        if state.connected or state.connecting:
+            self.report({'WARNING'}, "Already connected or connecting")
             return {'CANCELLED'}
 
         prefs = context.preferences.addons[__package__].preferences
@@ -162,9 +159,6 @@ class MEERKAT_OT_connect(bpy.types.Operator):
             self.report({'ERROR'}, "Room name, display name, and password are required")
             return {'CANCELLED'}
 
-        for obj in list(bpy.data.objects):
-            bpy.data.objects.remove(obj, do_unlink=True)
-
         state.intentional_disconnect = False
         client = WebSocketClient(url)
         client.connect(session_id=room_name, display_name=display_name)
@@ -172,7 +166,7 @@ class MEERKAT_OT_connect(bpy.types.Operator):
         state.ws_client = client
         state.session_id = room_name
         state.display_name = display_name
-        state.connected = True
+        state.connecting = True
         state.evicted = False
 
         client.send({
@@ -186,7 +180,7 @@ class MEERKAT_OT_connect(bpy.types.Operator):
 
         bpy.ops.meerkat.cursor_tracker('INVOKE_DEFAULT')
 
-        self.report({'INFO'}, f"Joined session {room_name}")
+        self.report({'INFO'}, f"Connecting to {room_name}…")
         return {'FINISHED'}
 
 
@@ -258,148 +252,6 @@ class MEERKAT_OT_disconnect(bpy.types.Operator):
         state.users.clear()
 
         self.report({'INFO'}, "Disconnected")
-        return {'FINISHED'}
-
-
-# ── Primitive creation operators ──────────────────────────────────────────────
-
-class MEERKAT_OT_add_cube(bpy.types.Operator):
-    bl_idname = "meerkat.add_cube"
-    bl_label = "Add Cube"
-    bl_description = "Add a cube and sync to session"
-
-    def execute(self, context):
-        state = PluginState()
-        if not state.connected:
-            self.report({'ERROR'}, "Not connected to a session")
-            return {'CANCELLED'}
-        bpy.ops.mesh.primitive_cube_add()
-        _send_create_object(context.active_object, "Cube")
-        return {'FINISHED'}
-
-
-class MEERKAT_OT_add_sphere(bpy.types.Operator):
-    bl_idname = "meerkat.add_sphere"
-    bl_label = "Add Sphere"
-    bl_description = "Add a sphere and sync to session"
-
-    def execute(self, context):
-        state = PluginState()
-        if not state.connected:
-            self.report({'ERROR'}, "Not connected to a session")
-            return {'CANCELLED'}
-        bpy.ops.mesh.primitive_uv_sphere_add()
-        _send_create_object(context.active_object, "Sphere")
-        return {'FINISHED'}
-
-
-class MEERKAT_OT_add_cylinder(bpy.types.Operator):
-    bl_idname = "meerkat.add_cylinder"
-    bl_label = "Add Cylinder"
-    bl_description = "Add a cylinder and sync to session"
-
-    def execute(self, context):
-        state = PluginState()
-        if not state.connected:
-            self.report({'ERROR'}, "Not connected to a session")
-            return {'CANCELLED'}
-        bpy.ops.mesh.primitive_cylinder_add()
-        _send_create_object(context.active_object, "Cylinder")
-        return {'FINISHED'}
-
-
-# ── Camera creation operator ─────────────────────────────────────────────────
-
-class MEERKAT_OT_add_camera(bpy.types.Operator):
-    bl_idname = "meerkat.add_camera"
-    bl_label = "Add Camera"
-    bl_description = "Add a camera and sync to session"
-
-    def execute(self, context):
-        state = PluginState()
-        if not state.connected:
-            self.report({'ERROR'}, "Not connected to a session")
-            return {'CANCELLED'}
-        bpy.ops.object.camera_add()
-        obj = context.active_object
-        cam = obj.data
-        properties = {
-            "Camera": {
-                "lens_type": "Orthographic" if cam.type == "ORTHO" else "Perspective",
-                "focal_length": cam.lens,
-                "orthographic_scale": cam.ortho_scale,
-                "shift_x": cam.shift_x,
-                "shift_y": cam.shift_y,
-                "clip_start": cam.clip_start,
-                "clip_end": cam.clip_end,
-                "focal_distance": cam.dof.focus_distance,
-                "aperture_fstop": cam.dof.aperture_fstop,
-                "aperture_blades": cam.dof.aperture_blades,
-                "aperture_rotation": cam.dof.aperture_rotation,
-                "aperture_ratio": cam.dof.aperture_ratio,
-                "sensor_fit": cam.sensor_fit,
-                "sensor_width": cam.sensor_width,
-                "sensor_height": cam.sensor_height,
-            }
-        }
-        _send_create_object(obj, "Camera", properties=properties)
-        return {'FINISHED'}
-
-
-# ── Light creation operators ─────────────────────────────────────────────────
-
-class MEERKAT_OT_add_point_light(bpy.types.Operator):
-    bl_idname = "meerkat.add_point_light"
-    bl_label = "Add Point Light"
-    bl_description = "Add a point light and sync to session"
-
-    def execute(self, context):
-        state = PluginState()
-        if not state.connected:
-            self.report({'ERROR'}, "Not connected to a session")
-            return {'CANCELLED'}
-        bpy.ops.object.light_add(type='POINT')
-        obj = context.active_object
-        light = obj.data
-        properties = {
-            "PointLight": {
-                "color": list(light.color),
-                "temperature": 6500.0,
-                "exposure": 0.0,
-                "power": light.energy,
-                "radius": light.shadow_soft_size,
-                "soft_falloff": False,
-                "normalize": False,
-            }
-        }
-        _send_create_object(obj, "PointLight", properties=properties)
-        return {'FINISHED'}
-
-
-class MEERKAT_OT_add_sun_light(bpy.types.Operator):
-    bl_idname = "meerkat.add_sun_light"
-    bl_label = "Add Sun Light"
-    bl_description = "Add a sun light and sync to session"
-
-    def execute(self, context):
-        state = PluginState()
-        if not state.connected:
-            self.report({'ERROR'}, "Not connected to a session")
-            return {'CANCELLED'}
-        bpy.ops.object.light_add(type='SUN')
-        obj = context.active_object
-        light = obj.data
-        properties = {
-            "SunLight": {
-                "color": list(light.color),
-                "temperature": 6500.0,
-                "exposure": 0.0,
-                "normalize": False,
-                "strength": light.energy,
-                "angle": light.angle,
-            }
-        }
-        _send_create_object(obj, "SunLight", properties=properties)
         return {'FINISHED'}
 
 

@@ -86,12 +86,24 @@ async fn test_update_handlers() {
     // ── UpdateProperties ──────────────────────────────────────────────────────
     let props = ObjectProperties::PointLight(PointLightProperties {
         color: [1.0, 0.5, 0.0],
+        use_temperature: false,
         temperature: 6500.0,
         exposure: 0.0,
         power: 100.0,
         radius: 0.1,
         soft_falloff: true,
         normalize: false,
+        cast_shadow: true,
+        shadow_jitter: false,
+        shadow_jitter_overblur: 0.0,
+        shadow_filter_radius: 1.0,
+        shadow_maximum_resolution: 0.001,
+        diffuse_factor: 1.0,
+        specular_factor: 1.0,
+        transmission_factor: 1.0,
+        volume_factor: 1.0,
+        use_custom_distance: false,
+        cutoff_distance: 40.0,
     });
     send(&mut ws_a, ClientEvent::UpdateProperties(UpdatePropertiesPayload {
         object_id,
