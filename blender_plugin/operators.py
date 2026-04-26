@@ -69,8 +69,8 @@ class MEERKAT_OT_create_session(bpy.types.Operator):
     def execute(self, context):
         state = PluginState()
 
-        if state.connected:
-            self.report({'WARNING'}, "Already connected")
+        if state.connected or state.connecting:
+            self.report({'WARNING'}, "Already connected or connecting")
             return {'CANCELLED'}
 
         prefs = context.preferences.addons[__package__].preferences
@@ -85,9 +85,6 @@ class MEERKAT_OT_create_session(bpy.types.Operator):
             self.report({'ERROR'}, "Room name, display name, and password are required")
             return {'CANCELLED'}
 
-        for obj in list(bpy.data.objects):
-            bpy.data.objects.remove(obj, do_unlink=True)
-
         state.intentional_disconnect = False
         client = WebSocketClient(url)
         client.connect(session_id=room_name, display_name=display_name)
@@ -95,7 +92,7 @@ class MEERKAT_OT_create_session(bpy.types.Operator):
         state.ws_client = client
         state.session_id = room_name
         state.display_name = display_name
-        state.connected = True
+        state.connecting = True
         state.evicted = False
 
         client.send({
@@ -109,7 +106,7 @@ class MEERKAT_OT_create_session(bpy.types.Operator):
 
         bpy.ops.meerkat.cursor_tracker('INVOKE_DEFAULT')
 
-        self.report({'INFO'}, f"Created session {room_name}")
+        self.report({'INFO'}, f"Creating session {room_name}…")
         return {'FINISHED'}
 
 
@@ -146,8 +143,8 @@ class MEERKAT_OT_connect(bpy.types.Operator):
     def execute(self, context):
         state = PluginState()
 
-        if state.connected:
-            self.report({'WARNING'}, "Already connected")
+        if state.connected or state.connecting:
+            self.report({'WARNING'}, "Already connected or connecting")
             return {'CANCELLED'}
 
         prefs = context.preferences.addons[__package__].preferences
@@ -162,9 +159,6 @@ class MEERKAT_OT_connect(bpy.types.Operator):
             self.report({'ERROR'}, "Room name, display name, and password are required")
             return {'CANCELLED'}
 
-        for obj in list(bpy.data.objects):
-            bpy.data.objects.remove(obj, do_unlink=True)
-
         state.intentional_disconnect = False
         client = WebSocketClient(url)
         client.connect(session_id=room_name, display_name=display_name)
@@ -172,7 +166,7 @@ class MEERKAT_OT_connect(bpy.types.Operator):
         state.ws_client = client
         state.session_id = room_name
         state.display_name = display_name
-        state.connected = True
+        state.connecting = True
         state.evicted = False
 
         client.send({
@@ -186,7 +180,7 @@ class MEERKAT_OT_connect(bpy.types.Operator):
 
         bpy.ops.meerkat.cursor_tracker('INVOKE_DEFAULT')
 
-        self.report({'INFO'}, f"Joined session {room_name}")
+        self.report({'INFO'}, f"Connecting to {room_name}…")
         return {'FINISHED'}
 
 

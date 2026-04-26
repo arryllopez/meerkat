@@ -254,10 +254,11 @@ def timer_function_transforms():
 
 def handle_full_state_sync(payload):
     state = PluginState()
+    state.connecting = False
+    state.connected = True
     state.is_applying_remote_update = True
 
     try:
-        # set id 
         state.user_id = payload.get("your_user_id", "")
         # 1. Delete all existing Meerkat-managed objects from the scene
         objs_to_remove = list(bpy.data.objects)
@@ -845,15 +846,27 @@ def handle_error(payload):
     message = payload.get("message", "Unknown error")
     print(f"[Meerkat] Server error: {code} — {message}")
 
-    # Disconnect on auth errors — server won't send FullStateSync
     if code in ("WRONG_PASSWORD", "SESSION_NOT_FOUND", "SESSION_ALREADY_EXISTS"):
         if state.ws_client:
             state.ws_client.disconnect()
             state.ws_client = None
+        state.connecting = False
         state.connected = False
         state.session_id = ""
         state.display_name = ""
         _redraw_panels()
+        _popup_error(code, message)
+
+
+def _popup_error(code, message):
+    def draw(self, _context):
+        self.layout.label(text=message)
+    title = {
+        "SESSION_NOT_FOUND": "Session not found",
+        "WRONG_PASSWORD": "Wrong password",
+        "SESSION_ALREADY_EXISTS": "Session already exists",
+    }.get(code, "Server error")
+    bpy.context.window_manager.popup_menu(draw, title=title, icon='ERROR')
 
 
 EVENT_HANDLERS = {
@@ -879,12 +892,14 @@ def timer_function():
         state.connected = False
         state.evicted = True
         _redraw_panels()
-    if not state.connected or not state.ws_client:
+    if not state.ws_client:
         return timer
 
     verbose_logging = _verbose_logging_enabled()
 
     while True:
+        if not state.ws_client:
+            break
         try:
             msg = state.ws_client.incoming.get_nowait()
         except queue.Empty:
@@ -902,7 +917,9 @@ def timer_function():
                 print(f"[Meerkat] ERROR handling {event_type}: {e}")
                 traceback.print_exc()
 
-    # Detect local native-adds (Shift+A, Add menu) and notify server
+    if not state.connected:
+        return timer
+
     if not state.is_applying_remote_update:
         detect_and_send_creations()
 

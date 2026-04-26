@@ -29,14 +29,19 @@ class MEERKAT_PT_main_panel(bpy.types.Panel):
             row = layout.row(align=True)
             row.prop(context.scene, "meerkat_panel_mode", expand=True)
 
-            layout.prop(context.scene, "meerkat_room_name")
-            layout.prop(context.scene, "meerkat_session_password")
-            layout.prop(context.scene, "meerkat_display_name")
+            form = layout.column()
+            form.enabled = not state.connecting
+            form.prop(context.scene, "meerkat_room_name")
+            form.prop(context.scene, "meerkat_session_password")
+            form.prop(context.scene, "meerkat_display_name")
 
             if context.scene.meerkat_panel_mode == 'CREATE':
-                layout.operator("meerkat.create_session")
+                form.operator("meerkat.create_session")
             else:
-                layout.operator("meerkat.connect")
+                form.operator("meerkat.connect")
+
+            if state.connecting:
+                layout.label(text="Connecting…", icon='SORTTIME')
         else:
             layout.separator()
             box = layout.box() 

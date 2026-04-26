@@ -20,7 +20,8 @@ class Singleton(type):
 
 @dataclass
 class PluginState(metaclass=Singleton):
-    connected: bool = False
+    connected: bool = False        # true only after FullStateSync confirms session membership
+    connecting: bool = False       # true between sending JoinSession and receiving FullStateSync or Error
     ws_client: WebSocketClient | None = None
     session_id: str = ""
     user_id: str = field(default_factory=lambda: str(uuid4()))

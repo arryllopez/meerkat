@@ -55,7 +55,8 @@ class WebSocketClient:
             async with websockets.connect(self.url) as ws:
                 self.ws = ws
                 self.connected_event.set()
-                state.connected = True
+                # connected/connecting flips live in handle_full_state_sync and handle_error;
+                # WS handshake completing isn't the same as being in a session.
                 state.evicted = False
                 state.reconnecting = False
                 state.reconnect_attempt = 0
@@ -72,6 +73,7 @@ class WebSocketClient:
                         self.last_close_reason = e.reason or ""
                         state.evicted = (e.code == EVICTED_CLOSE_CODE)
                         state.connected = False
+                        state.connecting = False
                         break
         except Exception as e:
             state.connected = False
