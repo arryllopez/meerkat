@@ -335,7 +335,7 @@ class MEERKAT_OT_cursor_tracker(bpy.types.Operator):
     def modal(self, context, event):
         state = PluginState()
         if not state.connected:
-            return {'CANCELLED'}
+            return {'PASS_THROUGH'}
 
         if event.type == 'MOUSEMOVE':
             # Find the 3D viewport region under the mouse
