@@ -49,7 +49,6 @@ Real-time collaborative scene layout in Blender. Multiple users arrange primitiv
 
 **Remaining for v0.1:**
 - [x] Full mesh primitive coverage — Plane, Cube, Circle, UV Sphere, Icosphere, Cylinder, Cone, Torus, Grid, Monkey
-- [ ] Collection sync (create, nest, move, rename — full hierarchy)
 - [ ] Docker + hosted relay server
 - [ ] Launch demo video: 4-person classroom blockout session
 - [ ] Reconnect UX polish (no stuck states, clear error surfacing)

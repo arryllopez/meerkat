@@ -1,0 +1,3 @@
+meerkat.example.com {
+    reverse_proxy meerkat:8000
+}

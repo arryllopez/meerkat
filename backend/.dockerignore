@@ -1,0 +1,6 @@
+target
+data
+.git
+.gitignore
+.github
+*.md

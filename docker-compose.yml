@@ -1,0 +1,33 @@
+services:
+  meerkat:
+    build:
+      context: ./backend
+    container_name: meerkat-server
+    restart: unless-stopped
+    expose:
+      - "8000"
+    networks:
+      - meerkat-net
+
+  caddy:
+    image: caddy:2
+    container_name: caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - meerkat-net
+    depends_on:
+      - meerkat
+
+networks:
+  meerkat-net:
+
+volumes:
+  caddy_data:
+  caddy_config:
