@@ -49,6 +49,8 @@ Meerkat enables realtime collaborative workflows at the object level inside of t
 
 [Download `meerkat-blender-plugin.zip`](https://github.com/arryllopez/meerkat/releases/latest/download/meerkat-blender-plugin.zip)
 
+This link pulls the Python Plugin from the latest release of Meerkat.
+
 In Blender, go to **Edit → Preferences → Add-ons → Install**, select the downloaded zip, then check the box beside **Meerkat** to enable.
 
 ![Enable Meerkat addon](first_time_setup/step1addon.png)
