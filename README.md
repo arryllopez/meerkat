@@ -16,8 +16,6 @@ Meerkat enables realtime collaborative workflows at the object level inside of t
   <img width="1200" height="300" alt="Meerkat banner" src="https://github.com/user-attachments/assets/1d96cfae-ddbe-475f-aaa3-78047050e43e" />
 </p>
 
-<h3 align="center">Alpha in progress — <a href="https://github.com/arryllopez/meerkat/discussions">follow along or join the discussion</a></h3>
-
 ---
 
 ## Why Meerkat?
@@ -49,16 +47,21 @@ Two components:
 
 ## How To Use
 
-### Install the Blender Python Plugin via the following link 
-add here
+### Install the Blender Python Plugin
 
-Steps on how to enable the plugin 
+[Download `meerkat-blender-plugin.zip`](https://github.com/arryllopez/meerkat/releases/latest/download/meerkat-blender-plugin.zip)
 
-add here
+In Blender, go to **Edit → Preferences → Add-ons → Install**, select the downloaded zip, then check the box beside **Meerkat** to enable.
+
+![Enable Meerkat addon](first_time_setup/step1addon.png)
+
+### Run the server
 
 Requires [Docker](https://www.docker.com/products/docker-desktop/) (Windows/macOS/Linux). Pick LAN or remote based on where your collaborators are.
 
 ### LAN — same Wi-Fi or office network
+
+Run the following command in your terminal
 
 ```bash
 docker run -d -p 8000:8000 --restart=unless-stopped \
@@ -83,20 +86,13 @@ Tailscale prints a public URL like `https://your-machine.tail-abc123.ts.net`. In
 
 > Sessions are password-protected. Share the password with collaborators out-of-band (Discord, text, etc.) — without it, nobody can join even if they have the URL.
 
-## Usage
+### Connect Blender to the server
 
-```bash
-# Or run the binary directly (no Docker)
-./meerkat-server
-```
+In the Meerkat add-on preferences, set the **Server URL** to the one from the step above (LAN or Remote).
 
-In Blender, go to Edit --> Preferences --> Addons --> Check the box beside Meerkat to enable 
-link the image to step1addon.png
+![Set server URL](first_time_setup/step2addon.png)
 
-Change the Server URL to whichever URL you end up with based on the steps above (LAN or Remote) 
-link the image to step2addon.png
-
-Inside Blender, open the **Meerkat** side panel (`N` key → Meerkat tab):
+Then open the **Meerkat** side panel in the 3D viewport (`N` key → Meerkat tab):
 
 | Action | Description |
 |--------|-------------|
@@ -105,7 +101,7 @@ Inside Blender, open the **Meerkat** side panel (`N` key → Meerkat tab):
 | Leave Session | Disconnect from the current session |
 | View Peers | See who's currently connected |
 
-link image to step3addon.png here
+![Meerkat side panel](first_time_setup/step3addon.png)
 
 
 ---
