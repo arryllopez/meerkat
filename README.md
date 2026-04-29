@@ -35,11 +35,11 @@ Meerkat enables realtime collaborative workflows at the object level inside of t
 
 ## Requirements
 
-| Dependency | Purpose |
-|------------|---------|
-| Blender 4.0+ | Plugin host (https://www.blender.org/) |
-| Python 3.10+ | Bundled with Blender |
-| Docker Desktop| https://www.docker.com/products/docker-desktop/| 
+| Dependency     | Purpose                                          |
+|----------------|--------------------------------------------------|
+| Blender 4.0+   | Plugin host (https://www.blender.org/)           |
+| Python 3.10+   | Bundled with Blender                             |
+| Docker Desktop | https://www.docker.com/products/docker-desktop/  |
 
 ---
 
@@ -57,11 +57,11 @@ In Blender, go to **Edit → Preferences → Add-ons → Install**, select the d
 
 ### Run the server
 
-Requires [Docker](https://www.docker.com/products/docker-desktop/) (Windows/macOS/Linux). 
+Requires [Docker](https://www.docker.com/products/docker-desktop/) (Windows/macOS/Linux).
 
 Depending on your situation, you might want to Host over a LAN or Remotely. See steps below and pick the suitable one for you and your team.
 
-### Hosting over a Local Area Network (LAN)
+#### Hosting over a Local Area Network (LAN)
 
 This setup is ideal for working in sessions where all parties are connected to the same Wi-Fi network
 
@@ -74,7 +74,7 @@ docker run -d -p 8000:8000 --restart=unless-stopped \
 
 In Blender, set the server URL to `ws://<your-local-ip>:8000/ws` (e.g. `ws://192.168.1.42:8000/ws`). Share that URL with anyone on the same network.
 
-### Remote
+#### Remote
 
 This setup allows collaboration with anybody even on different Wi-Fi networks.
 
@@ -100,11 +100,11 @@ In the Meerkat add-on preferences, set the **Server URL** to the one from the st
 
 Then open the **Meerkat** side panel in the 3D viewport (`N` key → Meerkat tab):
 
-| Action | Description |
-|--------|-------------|
-| Create Session | Start a new collaborative session |
-| Join Session | Connect to an existing session by ID |
-| Leave Session | Disconnect from the current session |
+| Action         | Description                            |
+|----------------|----------------------------------------|
+| Create Session | Start a new collaborative session      |
+| Join Session   | Connect to an existing session by ID   |
+| Leave Session  | Disconnect from the current session    |
 
 ![Meerkat side panel](first_time_setup/step3addon.png)
 
@@ -120,7 +120,8 @@ cargo test          # Run unit/integration tests
 cargo clippy        # Lint
 ```
 
-**Plugin development:**
+### Plugin development
+
 ```bash
 # Symlink plugin into Blender's addons directory for live reloading
 ln -s $(pwd)/blender_plugin ~/.config/blender/4.x/scripts/addons/meerkat
