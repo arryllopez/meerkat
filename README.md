@@ -37,7 +37,7 @@ Meerkat enables realtime collaborative workflows at the object level inside of t
 
 | Dependency | Purpose |
 |------------|---------|
-| Blender 4.0+ | Plugin host |
+| Blender 4.0+ | Plugin host (https://www.blender.org/) |
 | Python 3.10+ | Bundled with Blender |
 | Docker Desktop| https://www.docker.com/products/docker-desktop/| 
 
@@ -55,7 +55,9 @@ In Blender, go to **Edit → Preferences → Add-ons → Install**, select the d
 
 ### Run the server
 
-Requires [Docker](https://www.docker.com/products/docker-desktop/) (Windows/macOS/Linux). Pick LAN or remote based on where your collaborators are.
+Requires [Docker](https://www.docker.com/products/docker-desktop/) (Windows/macOS/Linux). 
+
+Depending on your situation, you might want to Host over a LAN or Remotely. See steps below and pick the suitable one for you and your team.
 
 ### Hosting over a Local Area Network (LAN)
 
