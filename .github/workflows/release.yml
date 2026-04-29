@@ -10,7 +10,8 @@ env:
   IMAGE_NAME: ${{ github.repository_owner }}/meerkat-server
 
 jobs:
-  build-and-push:
+  build-server-image:
+    name: Build & push server Docker image
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -41,7 +42,7 @@ jobs:
           tags: |
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
-            type=raw,value=latest,enable=${{ !contains(github.ref, '-') }}
+            type=raw,value=latest
 
       - name: Build and push
         uses: docker/build-push-action@v5
@@ -54,3 +55,55 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+  package-blender-plugin:
+    name: Package Blender plugin zip
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Build plugin zip
+        run: |
+          zip -r meerkat-blender-plugin.zip blender_plugin -x "blender_plugin/tests/*" "*.pyc" "*__pycache__*"
+
+      - name: Upload plugin artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: blender-plugin
+          path: meerkat-blender-plugin.zip
+
+  publish-github-release:
+    name: Publish GitHub Release
+    needs: [build-server-image, package-blender-plugin]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download plugin artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: blender-plugin
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: Meerkat ${{ github.ref_name }}
+          tag_name: ${{ github.ref_name }}
+          generate_release_notes: true
+          prerelease: ${{ contains(github.ref_name, '-') }}
+          files: meerkat-blender-plugin.zip
+          body: |
+            ## What to download
+
+            **Blender plugin** — install in Blender (Edit → Preferences → Add-ons → Install):
+
+            👉 [Download `meerkat-blender-plugin.zip`](https://github.com/${{ github.repository }}/releases/latest/download/meerkat-blender-plugin.zip)
+
+            **Server** — run via Docker, see [README](https://github.com/${{ github.repository }}#self-hosting):
+
+            ```bash
+            docker pull ghcr.io/${{ github.repository_owner }}/meerkat-server:latest
+            ```
+
+            ---

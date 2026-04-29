@@ -6,7 +6,7 @@
 [![GitHub Stars](https://img.shields.io/github/stars/arryllopez/meerkat?style=social)](https://github.com/arryllopez/meerkat)
 [![Discussions](https://img.shields.io/badge/GitHub-Discussions-purple?logo=github)](https://github.com/arryllopez/meerkat/discussions)
 
-Real-time collaborative scene editing inside Blender — multiplayer object sync, live transforms, shared presence, and (later) turn-based collaborative mesh modeling.
+Meerkat enables realtime collaborative workflows at the object level inside of the Blender viewport.
 
 <p align="center">
   <img src="cursor_tracking-ezgif.com-video-to-gif-converter.gif" alt="Meerkat demo — real-time object sync between two Blender instances">
@@ -22,110 +22,7 @@ Real-time collaborative scene editing inside Blender — multiplayer object sync
 
 ## Why Meerkat?
 
-Blender has no built-in real-time collaboration. Teams juggle `.blend` file versions over chat or cloud sync, hoping nobody overwrites each other's work. Meerkat makes the session live, like Figma did for design.
-
----
-
-## What works today
-
-- Real-time object lifecycle: create, delete, rename synced across peers
-- Live transforms: position, rotation, scale throttled at 30Hz
-- Camera and light property sync
-- Presence: connected users panel, selection highlights, remote cursor overlays
-- Password-gated sessions
-- Full state sync on join + reconnect + save-scene workflow
-
----
-
-## Alpha (v0.1) — Collaborative scene layout MVP
-
-Real-time collaborative scene layout in Blender. Multiple users arrange primitives, cameras, and lights in a shared 3D scene, organized with collections. Think Figma, but for a 3D scene blockout — you and your teammates place furniture, set up lighting, position cameras, all live.
-
-**Demo scenario:** A team of 4 collaboratively builds a classroom blockout — desks from cylinders and cubes, ceiling lights, cameras — in under 5 minutes, with every change visible across all clients in real time.
-
-**Who it's for:** layout teams, set dressers, level designers, architectural blockouts, storyboarders — anyone whose workflow is object-level.
-
-### Alpha roadmap
-
-**Remaining for v0.1:**
-- [x] Full mesh primitive coverage — Plane, Cube, Circle, UV Sphere, Icosphere, Cylinder, Cone, Torus, Grid, Monkey
-- [ ] Docker + hosted relay server
-- [ ] Launch demo video: 4-person classroom blockout session
-- [ ] Reconnect UX polish (no stuck states, clear error surfacing)
-
-That's it. Alpha ships when those five boxes are checked.
-
----
-
-## Post-alpha roadmap
-
-### v0.2 — Expanded object coverage
-
-Widening alpha's object type surface so more scene-layout workflows are viable end-to-end.
-
-- Empty objects (plain axes, arrows, image references)
-- Curve objects (Bezier — for paths and guide lines)
-- Text objects (for labels and signage)
-- Image reference objects (floor plans, concept art)
-- Parenting (object-to-object, object-to-collection)
-- Modifier stack sync, starting with Mirror and Array (most common in blockout work)
-
-### v0.3 — Richer object types and modifiers
-
-- Grease Pencil (v2 + v3)
-- Geometry Nodes (node graph state sync)
-- Material assignments + basic properties (shader node graph sync later)
-- Remaining modifiers: Subsurf, Bevel, Solidify, Boolean
-- Light probes, metaballs, volumes, speakers
-- World and scene settings
-
-### v0.4 — Concurrent mesh editing
-
-The real technical headline. A team of 4 can collaboratively model a dragon, car, or chair in real time on the same mesh, simultaneously. Selection-granular locks with last-write-wins semantics let peers work on disjoint regions in parallel: extrude, loop cut, bevel, move verts, all concurrently.
-
-Design borrows from two places: **Rust's ownership model** (exclusive mutable borrows, shared reads, RAII drop) and **Google Docs collaboration** (last-write-wins selection, per-user undo stack with cascade-delete on dependents).
-
-**Ownership model**
-- Stable per-vertex / per-edge / per-face IDs that survive topology ops
-- Ownership table: `{ element_id → user_id }`, server-arbitrated
-- Selection = ownership. Last-write-wins on overlap, per-element
-- Shared-read borrows: peers reference owned elements for snapping and bridge targets without claiming
-
-**Active-operator guard**
-- While a Blender operator is running (G, R, S, E, loop cut, bevel), the owner's lock is protected
-- Preemption attempts queued server-side, applied on op exit
-- Prevents mid-drag ownership theft and the desync that would follow
-
-**Edit flow**
-- Vertex transforms streamed at 30Hz on owned elements (live sculpt feel)
-- Topology ops broadcast with stable IDs, not full snapshots
-- Client-side ownership pre-check fails unowned-touching ops locally
-- Optional "full-mesh lock" escalation for global ops. Modeled on Rust's `unsafe {}` — opt-in, rare
-
-**Undo (Google Docs model)**
-- Per-user undo stack (hook Blender's built-in)
-- Undo emits an inverse op broadcast like any edit
-- Cascade-delete on topology: removing an element drops dependents (BMesh enforces this natively)
-- Peers' dangling ops drop silently on their client
-
-**Peer rendering**
-- Owned elements tinted with owner's user color
-- Hover tooltip: "Bob — 12s ago"
-- Preemption click transfers color and control atomically
-
-**Resilience**
-- Disconnect releases all locks (bookkeeping only; LWW makes grace periods unnecessary)
-- Full mesh snapshot fallback on reconnect or desync detection
-
-### Later
-
-- CRDT concurrent editing of the same element (no locks, automatic convergence)
-- Full operational-transform undo (inverse ops against intervening peer ops)
-- Material and shader-node sync
-- Animation sync (keyframes, markers, playback)
-- Sculpt-brush stroke streaming for high-poly workflows
-- In-scene comments, snapshot timeline, in-plugin chat
-- External asset library import / `.blend` linking
+Blender has no built-in real-time collaboration. Teams juggle `.blend` file versions over chat or cloud sync, hoping nobody overwrites each other's work. Meerkat makes the session live, so teams can get their work done faster.
 
 ---
 
@@ -146,35 +43,58 @@ Two components:
 |------------|---------|
 | Blender 4.0+ | Plugin host |
 | Python 3.10+ | Bundled with Blender |
-| Rust 1.75+ | Backend server (if self-hosting) |
+| Docker Desktop| https://www.docker.com/products/docker-desktop/| 
 
 ---
 
-## Installation
+## How To Use
 
-> **Alpha not yet released.** Instructions will be finalized for the first release. Watch the repo or [join the discussion](https://github.com/arryllopez/meerkat/discussions) to be notified.
+### Install the Blender Python Plugin via the following link 
+add here
 
-**From source (backend):**
+Steps on how to enable the plugin 
+
+add here
+
+Requires [Docker](https://www.docker.com/products/docker-desktop/) (Windows/macOS/Linux). Pick LAN or remote based on where your collaborators are.
+
+### LAN — same Wi-Fi or office network
+
 ```bash
-git clone https://github.com/arryllopez/meerkat.git
-cd meerkat
-cargo build --release
+docker run -d -p 8000:8000 --restart=unless-stopped \
+  --name meerkat ghcr.io/arryllopez/meerkat-server:latest
 ```
 
-**Plugin (Blender):**
-```
-# Coming soon — will be installable via Blender's Add-on preferences
-Edit → Preferences → Add-ons → Install → select meerkat.zip
+In Blender, set the server URL to `ws://<your-local-ip>:8000/ws` (e.g. `ws://192.168.1.42:8000/ws`). Share that URL with anyone on the same network.
+
+### Remote — collaborators on the internet
+
+Uses [Tailscale](https://tailscale.com/download) for a free public HTTPS URL — no domain, no port forwarding, no TLS setup.
+
+After installing Tailscale and signing in, enable **HTTPS Certificates** in the [admin console](https://login.tailscale.com/admin/dns), then:
+
+```bash
+docker run -d -p 8000:8000 --restart=unless-stopped \
+  --name meerkat ghcr.io/arryllopez/meerkat-server:latest
+sudo tailscale funnel 8000
 ```
 
----
+Tailscale prints a public URL like `https://your-machine.tail-abc123.ts.net`. In Blender, use `wss://your-machine.tail-abc123.ts.net/ws`.
+
+> Sessions are password-protected. Share the password with collaborators out-of-band (Discord, text, etc.) — without it, nobody can join even if they have the URL.
 
 ## Usage
 
 ```bash
-# Start the relay server (self-hosted)
+# Or run the binary directly (no Docker)
 ./meerkat-server
 ```
+
+In Blender, go to Edit --> Preferences --> Addons --> Check the box beside Meerkat to enable 
+link the image to step1addon.png
+
+Change the Server URL to whichever URL you end up with based on the steps above (LAN or Remote) 
+link the image to step2addon.png
 
 Inside Blender, open the **Meerkat** side panel (`N` key → Meerkat tab):
 
@@ -184,6 +104,9 @@ Inside Blender, open the **Meerkat** side panel (`N` key → Meerkat tab):
 | Join Session | Connect to an existing session by ID |
 | Leave Session | Disconnect from the current session |
 | View Peers | See who's currently connected |
+
+link image to step3addon.png here
+
 
 ---
 
