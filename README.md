@@ -18,6 +18,22 @@ Meerkat enables realtime collaborative workflows at the object level inside of t
 
 ---
 
+## Contents
+
+- [Architecture](#architecture)
+- [Requirements](#requirements)
+- [How To Use](#how-to-use)
+  - [Install the Blender Plugin](#install-the-blender-python-plugin)
+  - [Run the server](#run-the-server)
+  - [Hosting on a Local Network](#hosting-over-a-local-area-network-lan)
+  - [Hosting for Remote Collaborators](#remote)
+  - [Connect Blender to the server](#connect-blender-to-the-server)
+- [Development](#development)
+- [Contributing](#contributing)
+- [License](#license)
+
+---
+
 ## Architecture
 
 <img width="1507" height="674" alt="Meerkat Architecture Diagram" src="https://github.com/user-attachments/assets/7e35ad55-39a7-4034-b3b6-aa603eee2b75" />
