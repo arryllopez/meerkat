@@ -18,12 +18,6 @@ Meerkat enables realtime collaborative workflows at the object level inside of t
 
 ---
 
-## Why Meerkat?
-
-Blender has no built-in real-time collaboration. Teams juggle `.blend` file versions over chat or cloud sync, hoping nobody overwrites each other's work. Meerkat makes the session live, so teams can get their work done faster.
-
----
-
 ## Architecture
 
 <img width="1507" height="674" alt="Meerkat Architecture Diagram" src="https://github.com/user-attachments/assets/7e35ad55-39a7-4034-b3b6-aa603eee2b75" />
@@ -59,7 +53,9 @@ In Blender, go to **Edit → Preferences → Add-ons → Install**, select the d
 
 Requires [Docker](https://www.docker.com/products/docker-desktop/) (Windows/macOS/Linux). Pick LAN or remote based on where your collaborators are.
 
-### LAN — same Wi-Fi or office network
+### Hosting over a Local Area Network (LAN)
+
+This setup is ideal for working in sessions where all parties are connected to the same Wi-Fi network
 
 Run the following command in your terminal
 
@@ -70,7 +66,9 @@ docker run -d -p 8000:8000 --restart=unless-stopped \
 
 In Blender, set the server URL to `ws://<your-local-ip>:8000/ws` (e.g. `ws://192.168.1.42:8000/ws`). Share that URL with anyone on the same network.
 
-### Remote — collaborators on the internet
+### Remote
+
+This setup allows collaboration with anybody even on different Wi-Fi networks.
 
 Uses [Tailscale](https://tailscale.com/download) for a free public HTTPS URL — no domain, no port forwarding, no TLS setup.
 
@@ -96,13 +94,13 @@ Then open the **Meerkat** side panel in the 3D viewport (`N` key → Meerkat tab
 
 | Action | Description |
 |--------|-------------|
-| Host Session | Start a new collaborative session |
+| Create Session | Start a new collaborative session |
 | Join Session | Connect to an existing session by ID |
 | Leave Session | Disconnect from the current session |
-| View Peers | See who's currently connected |
 
 ![Meerkat side panel](first_time_setup/step3addon.png)
 
+Once connected, use Blender normally, but see your collaborators do work in realtime within the same viewport!
 
 ---
 
