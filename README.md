@@ -20,7 +20,6 @@ Meerkat enables realtime collaborative workflows at the object level inside of t
 
 ## Contents
 
-- [Architecture](#architecture)
 - [Requirements](#requirements)
 - [How To Use](#how-to-use)
   - [Install the Blender Plugin](#install-the-blender-python-plugin)
@@ -31,17 +30,6 @@ Meerkat enables realtime collaborative workflows at the object level inside of t
 - [Development](#development)
 - [Contributing](#contributing)
 - [License](#license)
-
----
-
-## Architecture
-
-<img width="1507" height="674" alt="Meerkat Architecture Diagram" src="https://github.com/user-attachments/assets/7e35ad55-39a7-4034-b3b6-aa603eee2b75" />
-
-Two components:
-
-- **Rust backend** (`tokio` + `axum`) — WebSocket sessions, object ID/transform diffing, relay. Transmits only IDs and transforms, not mesh data, so bandwidth stays minimal.
-- **Python Blender plugin** — Hooks Blender's depsgraph update handlers to capture local changes and apply incoming remote deltas.
 
 ---
 
